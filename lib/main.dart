@@ -42,3 +42,4 @@ class OpayApp extends StatelessWidget {
     );
   }
 }
+'/support': (context) => const SupportChatScreen(),

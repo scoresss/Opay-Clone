@@ -97,3 +97,4 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 }
+_buildTile(context, Icons.support_agent, 'Support', '/support'),

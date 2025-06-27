@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../services/firestore_service.dart';
+import '../utils/constants.dart';
+import '../widgets/custom_button.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({Key? key}) : super(key: key);
@@ -24,7 +26,6 @@ class _AdminScreenState extends State<AdminScreen> {
         final email = _emailController.text.trim();
         final amount = double.parse(_amountController.text.trim());
 
-        // Find the user by email
         final userQuery = await FirebaseFirestore.instance
             .collection('users')
             .where('email', isEqualTo: email)
@@ -41,10 +42,9 @@ class _AdminScreenState extends State<AdminScreen> {
         final currentBalance = (userDoc['balance'] ?? 0).toDouble();
         final newBalance = currentBalance + amount;
 
-        // Update balance
         await FirestoreService().updateBalance(uid, newBalance);
 
-        // Add transaction log
+        // Log top-up transaction
         await FirestoreService().addTransaction(uid, {
           'title': 'Top-up from Admin',
           'amount': amount,
@@ -65,9 +65,9 @@ class _AdminScreenState extends State<AdminScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Admin Panel')),
+      appBar: AppBar(title: const Text('Admin Panel'), backgroundColor: AppColors.primary),
       body: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: AppPadding.screen,
         child: Form(
           key: _formKey,
           child: Column(
@@ -98,16 +98,11 @@ class _AdminScreenState extends State<AdminScreen> {
                 },
               ),
               const SizedBox(height: 30),
-              _loading
-                  ? const CircularProgressIndicator()
-                  : ElevatedButton(
-                      onPressed: _topUpBalance,
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(50),
-                        backgroundColor: Colors.green,
-                      ),
-                      child: const Text('Top Up'),
-                    ),
+              CustomButton(
+                text: 'Top Up',
+                onPressed: _topUpBalance,
+                loading: _loading,
+              ),
             ],
           ),
         ),

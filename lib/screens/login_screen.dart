@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,18 +14,22 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  bool _isLoading = false;
+  bool _loading = false;
 
-  void _login() {
+  Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-
-      // Simulate login
-      Future.delayed(const Duration(seconds: 2), () {
-        setState(() => _isLoading = false);
-
-        Navigator.pushReplacementNamed(context, '/dashboard'); // go to dashboard
-      });
+      setState(() => _loading = true);
+      try {
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      } catch (e) {
+        Fluttertoast.showToast(msg: e.toString());
+      } finally {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -32,7 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Opay Login')),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
@@ -41,29 +47,25 @@ class _LoginScreenState extends State<LoginScreen> {
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(labelText: 'Email'),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) =>
-                    value!.isEmpty ? 'Please enter your email' : null,
+                validator: (val) => val!.isEmpty ? 'Enter email' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _passwordController,
                 decoration: const InputDecoration(labelText: 'Password'),
                 obscureText: true,
-                validator: (value) =>
-                    value!.isEmpty ? 'Please enter your password' : null,
+                validator: (val) => val!.isEmpty ? 'Enter password' : null,
               ),
               const SizedBox(height: 30),
-              _isLoading
+              _loading
                   ? const CircularProgressIndicator()
                   : ElevatedButton(
                       onPressed: _login,
                       child: const Text('Login'),
                     ),
               TextButton(
-                onPressed: () =>
-                    Navigator.pushNamed(context, '/register'), // go to register
-                child: const Text('Don\'t have an account? Register'),
+                onPressed: () => Navigator.pushNamed(context, '/register'),
+                child: const Text('No account? Register'),
               ),
             ],
           ),

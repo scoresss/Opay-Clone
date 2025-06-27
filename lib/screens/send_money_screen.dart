@@ -22,32 +22,52 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
       setState(() => _loading = true);
 
       try {
-        final senderUid = FirebaseAuth.instance.currentUser!.uid;
+        final sender = FirebaseAuth.instance.currentUser!;
+        final senderUid = sender.uid;
+        final senderEmail = sender.email!;
         final receiverEmail = _receiverEmailController.text.trim();
         final amount = double.parse(_amountController.text.trim());
 
-        // Look up receiver UID
-        final usersRef = FirebaseFirestore.instance.collection('users');
-        final query = await usersRef.where('email', isEqualTo: receiverEmail).get();
+        // Find receiver by email
+        final query = await FirebaseFirestore.instance
+            .collection('users')
+            .where('email', isEqualTo: receiverEmail)
+            .get();
 
         if (query.docs.isEmpty) {
           Fluttertoast.showToast(msg: 'Receiver not found');
           return;
         }
 
-        final receiverUid = query.docs.first.id;
+        final receiverDoc = query.docs.first;
+        final receiverUid = receiverDoc.id;
+        final receiverName = receiverDoc['name'];
 
         if (receiverUid == senderUid) {
-          Fluttertoast.showToast(msg: 'Cannot send money to yourself');
+          Fluttertoast.showToast(msg: 'Cannot send to yourself');
           return;
         }
 
-        // Use the service to perform transaction
+        // Perform money transfer
         await FirestoreService().sendMoney(
           senderUid: senderUid,
           receiverUid: receiverUid,
           amount: amount,
         );
+
+        // Log transaction for sender
+        await FirestoreService().addTransaction(senderUid, {
+          'title': 'Sent to $receiverName',
+          'amount': -amount,
+          'date': DateTime.now().toString(),
+        });
+
+        // Log transaction for receiver
+        await FirestoreService().addTransaction(receiverUid, {
+          'title': 'Received from $senderEmail',
+          'amount': +amount,
+          'date': DateTime.now().toString(),
+        });
 
         Fluttertoast.showToast(msg: 'Money sent successfully!');
         _receiverEmailController.clear();

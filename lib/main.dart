@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:opay_clone/screens/login_screen.dart';
 import 'package:opay_clone/screens/dashboard.dart';
 import 'package:opay_clone/screens/register_screen.dart';
@@ -9,7 +10,9 @@ import 'package:opay_clone/screens/electricity_screen.dart';
 import 'package:opay_clone/screens/profile_screen.dart';
 import 'package:opay_clone/screens/transaction_history.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(); // ✅ Initializes Firebase
   runApp(OpayApp());
 }
 
@@ -25,15 +28,15 @@ class OpayApp extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
-        '/': (context) => LoginScreen(),
-        '/register': (context) => RegisterScreen(),
-        '/dashboard': (context) => DashboardScreen(),
-        '/admin': (context) => AdminScreen(),
-        '/send-money': (context) => SendMoneyScreen(),
-        '/airtime': (context) => AirtimeScreen(),
-        '/electricity': (context) => ElectricityScreen(),
-        '/profile': (context) => ProfileScreen(),
-        '/history': (context) => TransactionHistoryScreen(),
+        '/': (context) => const LoginScreen(),
+        '/register': (context) => const RegisterScreen(),
+        '/dashboard': (context) => const DashboardScreen(),
+        '/admin': (context) => const AdminScreen(),
+        '/send': (context) => const SendMoneyScreen(),
+        '/airtime': (context) => const AirtimeScreen(),
+        '/electricity': (context) => const ElectricityScreen(),
+        '/profile': (context) => const ProfileScreen(),
+        '/history': (context) => const TransactionHistoryScreen(),
       },
     );
   }

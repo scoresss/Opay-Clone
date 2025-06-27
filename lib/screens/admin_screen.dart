@@ -37,14 +37,21 @@ class _AdminScreenState extends State<AdminScreen> {
 
         final userDoc = userQuery.docs.first;
         final uid = userDoc.id;
+        final name = userDoc['name'];
         final currentBalance = (userDoc['balance'] ?? 0).toDouble();
-
         final newBalance = currentBalance + amount;
 
-        // Update balance using the service
+        // Update balance
         await FirestoreService().updateBalance(uid, newBalance);
 
-        Fluttertoast.showToast(msg: '₦$amount added to $email');
+        // Add transaction log
+        await FirestoreService().addTransaction(uid, {
+          'title': 'Top-up from Admin',
+          'amount': amount,
+          'date': DateTime.now().toString(),
+        });
+
+        Fluttertoast.showToast(msg: '₦$amount added to $name');
         _emailController.clear();
         _amountController.clear();
       } catch (e) {

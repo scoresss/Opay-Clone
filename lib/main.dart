@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:opay_clone/screens/login_screen.dart';
@@ -12,7 +13,7 @@ import 'package:opay_clone/screens/transaction_history.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(); // ✅ Initializes Firebase
+  await Firebase.initializeApp();
   runApp(OpayApp());
 }
 

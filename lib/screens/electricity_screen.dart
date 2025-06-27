@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import '../services/firestore_service.dart';
 
 class ElectricityScreen extends StatefulWidget {
-  const ElectricityScreen({super.key});
+  const ElectricityScreen({Key? key}) : super(key: key);
 
   @override
   State<ElectricityScreen> createState() => _ElectricityScreenState();
@@ -12,27 +15,48 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _meterController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
-  String _selectedDisco = 'Ikeja Electric';
+  bool _loading = false;
 
-  final List<String> discos = [
-    'Ikeja Electric',
-    'Eko Electric',
-    'Abuja Disco',
-    'PHED',
-    'Enugu Disco',
-  ];
-
-  void _payElectricity() {
+  Future<void> _buyElectricity() async {
     if (_formKey.currentState!.validate()) {
-      Fluttertoast.showToast(
-        msg:
-            '₦${_amountController.text} paid to $_selectedDisco (Meter: ${_meterController.text})',
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-      );
+      setState(() => _loading = true);
 
-      _meterController.clear();
-      _amountController.clear();
+      try {
+        final user = FirebaseAuth.instance.currentUser!;
+        final uid = user.uid;
+        final meter = _meterController.text.trim();
+        final amount = double.parse(_amountController.text.trim());
+
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .get();
+
+        double balance = (doc['balance'] ?? 0).toDouble();
+
+        if (balance < amount) {
+          Fluttertoast.showToast(msg: 'Insufficient balance');
+          return;
+        }
+
+        final newBalance = balance - amount;
+
+        await FirestoreService().updateBalance(uid, newBalance);
+
+        await FirestoreService().addTransaction(uid, {
+          'title': 'Electricity for meter $meter',
+          'amount': -amount,
+          'date': DateTime.now().toString(),
+        });
+
+        Fluttertoast.showToast(msg: '₦$amount paid for meter $meter');
+        _meterController.clear();
+        _amountController.clear();
+      } catch (e) {
+        Fluttertoast.showToast(msg: 'Error: ${e.toString()}');
+      } finally {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -46,25 +70,6 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
           key: _formKey,
           child: Column(
             children: [
-              DropdownButtonFormField(
-                value: _selectedDisco,
-                items: discos
-                    .map((disco) => DropdownMenuItem(
-                          value: disco,
-                          child: Text(disco),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedDisco = value!;
-                  });
-                },
-                decoration: const InputDecoration(
-                  labelText: 'Select Disco',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 20),
               TextFormField(
                 controller: _meterController,
                 keyboardType: TextInputType.number,
@@ -72,29 +77,36 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
                   labelText: 'Meter Number',
                   border: OutlineInputBorder(),
                 ),
-                validator: (value) =>
-                    value == null || value.length < 6 ? 'Enter valid meter number' : null,
+                validator: (val) =>
+                    val == null || val.length < 5 ? 'Enter valid meter number' : null,
               ),
               const SizedBox(height: 20),
               TextFormField(
                 controller: _amountController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: 'Amount',
+                  labelText: 'Amount (₦)',
                   border: OutlineInputBorder(),
                 ),
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Enter amount' : null,
+                validator: (val) {
+                  if (val == null || val.isEmpty) return 'Enter amount';
+                  if (double.tryParse(val) == null || double.parse(val) <= 0) {
+                    return 'Enter valid amount';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 30),
-              ElevatedButton(
-                onPressed: _payElectricity,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  minimumSize: const Size.fromHeight(50),
-                ),
-                child: const Text('Pay Now', style: TextStyle(fontSize: 16)),
-              ),
+              _loading
+                  ? const CircularProgressIndicator()
+                  : ElevatedButton(
+                      onPressed: _buyElectricity,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(50),
+                        backgroundColor: Colors.green,
+                      ),
+                      child: const Text('Pay Electricity'),
+                    ),
             ],
           ),
         ),

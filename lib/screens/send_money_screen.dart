@@ -3,6 +3,8 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firestore_service.dart';
+import '../utils/constants.dart';
+import '../widgets/custom_button.dart';
 
 class SendMoneyScreen extends StatefulWidget {
   const SendMoneyScreen({Key? key}) : super(key: key);
@@ -28,7 +30,7 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
         final receiverEmail = _receiverEmailController.text.trim();
         final amount = double.parse(_amountController.text.trim());
 
-        // Find receiver by email
+        // Find receiver
         final query = await FirebaseFirestore.instance
             .collection('users')
             .where('email', isEqualTo: receiverEmail)
@@ -48,24 +50,24 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
           return;
         }
 
-        // Perform money transfer
+        // Transfer
         await FirestoreService().sendMoney(
           senderUid: senderUid,
           receiverUid: receiverUid,
           amount: amount,
         );
 
-        // Log transaction for sender
+        // Log for sender
         await FirestoreService().addTransaction(senderUid, {
           'title': 'Sent to $receiverName',
           'amount': -amount,
           'date': DateTime.now().toString(),
         });
 
-        // Log transaction for receiver
+        // Log for receiver
         await FirestoreService().addTransaction(receiverUid, {
           'title': 'Received from $senderEmail',
-          'amount': +amount,
+          'amount': amount,
           'date': DateTime.now().toString(),
         });
 
@@ -83,9 +85,9 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Send Money')),
+      appBar: AppBar(title: const Text('Send Money'), backgroundColor: AppColors.primary),
       body: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: AppPadding.screen,
         child: Form(
           key: _formKey,
           child: Column(
@@ -116,16 +118,11 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
                 },
               ),
               const SizedBox(height: 30),
-              _loading
-                  ? const CircularProgressIndicator()
-                  : ElevatedButton(
-                      onPressed: _sendMoney,
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(50),
-                        backgroundColor: Colors.green,
-                      ),
-                      child: const Text('Send'),
-                    ),
+              CustomButton(
+                text: 'Send',
+                onPressed: _sendMoney,
+                loading: _loading,
+              ),
             ],
           ),
         ),

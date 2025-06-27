@@ -11,10 +11,13 @@ import 'package:opay_clone/screens/electricity_screen.dart';
 import 'package:opay_clone/screens/profile_screen.dart';
 import 'package:opay_clone/screens/transaction_history.dart';
 
+import 'services/notification_service.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  runApp(OpayApp());
+  await NotificationService.initializeFCM(); // ✅ Push setup
+  runApp(const OpayApp());
 }
 
 class OpayApp extends StatelessWidget {

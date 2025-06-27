@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/firestore_service.dart';
-import '../utils/constants.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import '../widgets/custom_button.dart';
+import '../utils/constants.dart';
+import '../services/notification_service.dart';
 
 class SendMoneyScreen extends StatefulWidget {
   const SendMoneyScreen({Key? key}) : super(key: key);
@@ -15,113 +15,118 @@ class SendMoneyScreen extends StatefulWidget {
 
 class _SendMoneyScreenState extends State<SendMoneyScreen> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _receiverEmailController = TextEditingController();
-  final TextEditingController _amountController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _amountController = TextEditingController();
   bool _loading = false;
 
   Future<void> _sendMoney() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _loading = true);
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _loading = true);
 
-      try {
-        final sender = FirebaseAuth.instance.currentUser!;
-        final senderUid = sender.uid;
-        final senderEmail = sender.email!;
-        final receiverEmail = _receiverEmailController.text.trim();
-        final amount = double.parse(_amountController.text.trim());
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final senderEmail = currentUser?.email;
+    final receiverEmail = _emailController.text.trim();
+    final amount = double.tryParse(_amountController.text.trim()) ?? 0;
 
-        // Find receiver
-        final query = await FirebaseFirestore.instance
-            .collection('users')
-            .where('email', isEqualTo: receiverEmail)
-            .get();
+    if (senderEmail == receiverEmail) {
+      Fluttertoast.showToast(msg: "You can't send money to yourself.");
+      setState(() => _loading = false);
+      return;
+    }
 
-        if (query.docs.isEmpty) {
-          Fluttertoast.showToast(msg: 'Receiver not found');
-          return;
-        }
+    try {
+      final senderDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser!.uid)
+          .get();
 
-        final receiverDoc = query.docs.first;
-        final receiverUid = receiverDoc.id;
-        final receiverName = receiverDoc['name'];
+      final senderData = senderDoc.data()!;
+      final senderBalance = (senderData['balance'] ?? 0).toDouble();
 
-        if (receiverUid == senderUid) {
-          Fluttertoast.showToast(msg: 'Cannot send to yourself');
-          return;
-        }
-
-        // Transfer
-        await FirestoreService().sendMoney(
-          senderUid: senderUid,
-          receiverUid: receiverUid,
-          amount: amount,
-        );
-
-        // Log for sender
-        await FirestoreService().addTransaction(senderUid, {
-          'title': 'Sent to $receiverName',
-          'amount': -amount,
-          'date': DateTime.now().toString(),
-        });
-
-        // Log for receiver
-        await FirestoreService().addTransaction(receiverUid, {
-          'title': 'Received from $senderEmail',
-          'amount': amount,
-          'date': DateTime.now().toString(),
-        });
-
-        Fluttertoast.showToast(msg: 'Money sent successfully!');
-        _receiverEmailController.clear();
-        _amountController.clear();
-      } catch (e) {
-        Fluttertoast.showToast(msg: 'Error: ${e.toString()}');
-      } finally {
-        setState(() => _loading = false);
+      if (senderBalance < amount) {
+        Fluttertoast.showToast(msg: "Insufficient balance.");
+        return;
       }
+
+      final receiverQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: receiverEmail)
+          .get();
+
+      if (receiverQuery.docs.isEmpty) {
+        Fluttertoast.showToast(msg: "Receiver not found.");
+        return;
+      }
+
+      final receiverDoc = receiverQuery.docs.first;
+      final receiverId = receiverDoc.id;
+      final receiverData = receiverDoc.data();
+      final receiverBalance = (receiverData['balance'] ?? 0).toDouble();
+
+      // Update balances
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .update({'balance': senderBalance - amount});
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(receiverId)
+          .update({'balance': receiverBalance + amount});
+
+      // Log transaction
+      await FirebaseFirestore.instance.collection('transactions').add({
+        'from': senderEmail,
+        'to': receiverEmail,
+        'amount': amount,
+        'type': 'transfer',
+        'timestamp': Timestamp.now(),
+      });
+
+      // 🔔 Push Notification
+      await NotificationService.sendPushNotification(
+        title: 'Money Sent',
+        body: 'You sent ₦$amount to $receiverEmail',
+      );
+
+      Fluttertoast.showToast(msg: "Transfer successful!");
+      _emailController.clear();
+      _amountController.clear();
+    } catch (e) {
+      Fluttertoast.showToast(msg: "Error: $e");
+    } finally {
+      setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Send Money'), backgroundColor: AppColors.primary),
+      appBar: AppBar(title: const Text("Send Money")),
       body: Padding(
-        padding: AppPadding.screen,
+        padding: defaultPadding,
         child: Form(
           key: _formKey,
           child: Column(
             children: [
               TextFormField(
-                controller: _receiverEmailController,
-                decoration: const InputDecoration(
-                  labelText: 'Recipient Email',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (val) =>
-                    val == null || val.isEmpty ? 'Enter recipient email' : null,
+                controller: _emailController,
+                decoration: const InputDecoration(labelText: 'Receiver Email'),
+                validator: (value) =>
+                    value!.isEmpty ? 'Please enter email' : null,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _amountController,
+                decoration: const InputDecoration(labelText: 'Amount'),
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Amount (₦)',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (val) {
-                  if (val == null || val.isEmpty) return 'Enter amount';
-                  if (double.tryParse(val) == null || double.parse(val) <= 0) {
-                    return 'Enter a valid amount';
-                  }
-                  return null;
-                },
+                validator: (value) =>
+                    value!.isEmpty ? 'Please enter amount' : null,
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 24),
               CustomButton(
-                text: 'Send',
-                onPressed: _sendMoney,
-                loading: _loading,
+                text: _loading ? 'Sending...' : 'Send',
+                onPressed: _loading ? null : _sendMoney,
               ),
             ],
           ),

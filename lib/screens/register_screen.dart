@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -9,63 +11,60 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  bool _isLoading = false;
+  bool _loading = false;
 
-  void _register() {
+  Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-
-      // Simulate registration
-      Future.delayed(const Duration(seconds: 2), () {
-        setState(() => _isLoading = false);
-
-        Navigator.pushReplacementNamed(context, '/dashboard'); // go to dashboard
-      });
+      setState(() => _loading = true);
+      try {
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+        Fluttertoast.showToast(msg: "Account created!");
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      } catch (e) {
+        Fluttertoast.showToast(msg: e.toString());
+      } finally {
+        setState(() => _loading = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Opay Register')),
+      appBar: AppBar(title: const Text('Register')),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
             children: [
               const SizedBox(height: 30),
               TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Full Name'),
-                validator: (value) =>
-                    value!.isEmpty ? 'Enter your name' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(labelText: 'Email'),
-                validator: (value) =>
-                    value!.isEmpty ? 'Enter your email' : null,
+                validator: (val) => val!.isEmpty ? 'Enter email' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _passwordController,
                 obscureText: true,
                 decoration: const InputDecoration(labelText: 'Password'),
-                validator: (value) =>
-                    value!.isEmpty ? 'Enter your password' : null,
+                validator: (val) => val!.length < 6
+                    ? 'Minimum 6 characters required'
+                    : null,
               ),
               const SizedBox(height: 30),
-              _isLoading
+              _loading
                   ? const CircularProgressIndicator()
                   : ElevatedButton(
                       onPressed: _register,
-                      child: const Text('Register'),
+                      child: const Text('Create Account'),
                     ),
               TextButton(
                 onPressed: () => Navigator.pushReplacementNamed(context, '/'),

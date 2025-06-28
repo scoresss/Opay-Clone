@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AdminAnalyticsScreen extends StatefulWidget {
   const AdminAnalyticsScreen({super.key});
@@ -9,16 +10,39 @@ class AdminAnalyticsScreen extends StatefulWidget {
 }
 
 class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
+  bool loading = true;
+  bool isAdmin = false;
+
   int totalUsers = 0;
   int totalTransactions = 0;
   double totalReferralPayouts = 0;
   Map<String, int> referralCounts = {};
-  bool loading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadAnalytics();
+    _checkUserRole();
+  }
+
+  Future<void> _checkUserRole() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final role = doc.data()?['role'] ?? 'user';
+
+    if (role == 'admin') {
+      setState(() {
+        isAdmin = true;
+        loading = false;
+      });
+      _loadAnalytics();
+    } else {
+      setState(() {
+        isAdmin = false;
+        loading = false;
+      });
+    }
   }
 
   Future<void> _loadAnalytics() async {
@@ -26,7 +50,6 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
     final allUsers = usersSnap.docs;
     totalUsers = allUsers.length;
 
-    // Count referred users
     final referred = allUsers.where((doc) => doc.data()['referralUsed'] != null);
     for (var doc in referred) {
       final refBy = doc['referralUsed'];
@@ -54,7 +77,6 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
     setState(() {
       totalTransactions = txCount;
       totalReferralPayouts = referralTotal;
-      loading = false;
     });
   }
 
@@ -62,14 +84,23 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
   Widget build(BuildContext context) {
     if (loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
+    if (!isAdmin) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Access Denied')),
+        body: const Center(
+          child: Text(
+            '❌ You are not authorized to access this page.',
+            style: TextStyle(fontSize: 16),
+          ),
+        ),
+      );
+    }
+
     final topReferrers = referralCounts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('📊 Admin Analytics'),
-        backgroundColor: Colors.green,
-      ),
+      appBar: AppBar(title: const Text('📊 Admin Analytics'), backgroundColor: Colors.green),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -82,7 +113,6 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
           ),
           const SizedBox(height: 24),
           const Text('🥇 Top Referrers', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-
           ...topReferrers.map((entry) => ListTile(
                 title: Text('UID: ${entry.key}'),
                 subtitle: Text('${entry.value} users referred'),

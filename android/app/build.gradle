@@ -19,9 +19,7 @@ android {
         release {
             minifyEnabled true
             shrinkResources true
-            proguardFiles getDefaultProguardFile(
-                'proguard-android-optimize.txt'
-            ), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 
@@ -31,21 +29,16 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = '1.8'
     }
 }
 
 dependencies {
-    // Firebase BoM handles versions
     implementation platform('com.google.firebase:firebase-bom:32.7.3')
-
-    // Firebase SDKs
     implementation 'com.google.firebase:firebase-analytics'
     implementation 'com.google.firebase:firebase-auth'
     implementation 'com.google.firebase:firebase-firestore'
     implementation 'com.google.firebase:firebase-messaging'
-    implementation 'com.google.firebase:firebase-storage'
 
-    // MultiDex (required for many plugins)
     implementation 'androidx.multidex:multidex:2.0.1'
 }

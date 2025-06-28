@@ -54,70 +54,34 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                     final date = tx['date'] ?? '';
 
                     return Card(
-                      margin: const EdgeInsets.symmetric(vertical: 6),
-                      child: ListTile(
-                        title: Text(title),
-                        subtitle: Text(date),
-                        trailing: Text(
-                          '₦${amount.toString()}',
-                          style: TextStyle(
-                            color: amount >= 0 ? Colors.green : Colors.red,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+  margin: const EdgeInsets.symmetric(vertical: 6),
+  child: ListTile(
+    title: Text(title),
+    subtitle: Text(date),
+    trailing: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          '₦${amount.toString()}',
+          style: TextStyle(
+            color: amount >= 0 ? Colors.green : Colors.red,
+            fontWeight: FontWeight.bold,
           ),
-        ],
-      ),
-    );
-  }
-
-  /// Filter buttons at the top
-  Widget _buildFilterBar() {
-    final filters = ['all', 'transfer', 'airtime', 'electricity'];
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        children: filters.map((type) {
-          final isSelected = selectedType == type;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              label: Text(type[0].toUpperCase() + type.substring(1)),
-              selected: isSelected,
-              onSelected: (_) {
-                setState(() => selectedType = type);
-              },
-              selectedColor: AppColors.primary,
-              backgroundColor: Colors.grey.shade300,
-              labelStyle: TextStyle(
-                color: isSelected ? Colors.white : Colors.black,
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  /// Firestore query based on selected filter
-  Stream<QuerySnapshot> _getFilteredTransactions(String uid) {
-    final base = FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('transactions')
-        .orderBy('date', descending: true);
-
-    if (selectedType == 'all') {
-      return base.snapshots();
-    } else {
-      return base.where('type', isEqualTo: selectedType).snapshots();
-    }
-  }
-}
+        ),
+        IconButton(
+          icon: const Icon(Icons.download),
+          tooltip: 'Download Receipt',
+          onPressed: () async {
+            final pdfData = await ReceiptService.generateReceipt(
+              title: title,
+              amount: amount.toDouble(),
+              date: date,
+              type: tx['type'] ?? 'transfer',
+            );
+            await Printing.layoutPdf(onLayout: (format) async => pdfData);
+          },
+        ),
+      ],
+    ),
+  ),
+);

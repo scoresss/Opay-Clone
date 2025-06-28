@@ -1,117 +1,102 @@
+import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 
 class TopUpScreen extends StatefulWidget {
-  const TopUpScreen({Key? key}) : super(key: key);
+  const TopUpScreen({super.key});
 
   @override
   State<TopUpScreen> createState() => _TopUpScreenState();
 }
 
 class _TopUpScreenState extends State<TopUpScreen> {
-  final TextEditingController _amountController = TextEditingController();
-  String _selectedMethod = 'wallet'; // or 'card'
-  bool _loading = false;
+  final emailController = TextEditingController();
+  final amountController = TextEditingController();
+  bool loading = false;
 
-  final user = FirebaseAuth.instance.currentUser;
+  Future<void> _topUpBalance() async {
+    final receiverEmail = emailController.text.trim();
+    final amount = double.tryParse(amountController.text.trim()) ?? 0;
+    final sender = FirebaseAuth.instance.currentUser;
 
-  void _submitTopUp() async {
-    final amountText = _amountController.text.trim();
-    final amount = double.tryParse(amountText);
-    if (amount == null || amount <= 0) {
-      Fluttertoast.showToast(msg: 'Enter a valid amount');
+    if (receiverEmail.isEmpty || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter valid email and amount')),
+      );
       return;
     }
 
-    if (user == null) {
-      Fluttertoast.showToast(msg: 'User not logged in');
-      return;
-    }
-
-    setState(() => _loading = true);
-
-    final uid = user.uid;
-    final userDoc = FirebaseFirestore.instance.collection('users').doc(uid);
+    setState(() => loading = true);
 
     try {
-      final snapshot = await userDoc.get();
-      final currentBalance = snapshot.data()?['balance'] ?? 0;
+      final receiverQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: receiverEmail)
+          .limit(1)
+          .get();
 
-      final newBalance = currentBalance + amount;
+      if (receiverQuery.docs.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User not found')),
+        );
+        return;
+      }
 
-      await userDoc.update({'balance': newBalance});
+      final receiverRef = receiverQuery.docs.first.reference;
+      final receiverData = receiverQuery.docs.first.data();
+      final oldBalance = (receiverData['balance'] ?? 0).toDouble();
+      final newBalance = oldBalance + amount;
 
-      await userDoc.collection('transactions').add({
-        'title': 'Top Up via $_selectedMethod',
-        'amount': amount,
+      await receiverRef.update({'balance': newBalance});
+
+      // Log the top-up transaction
+      final txnId = 'TXN-${DateTime.now().millisecondsSinceEpoch}';
+      await receiverRef.collection('transactions').add({
         'type': 'topup',
-        'method': _selectedMethod,
+        'from': sender?.email ?? 'Unknown',
+        'amount': amount,
+        'date': DateTime.now(),
         'status': 'success',
-        'date': DateTime.now().toIso8601String(),
+        'txnId': txnId,
       });
 
-      Fluttertoast.showToast(msg: 'Top-up successful!');
-      _amountController.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('₦$amount added to $receiverEmail')),
+      );
     } catch (e) {
-      Fluttertoast.showToast(msg: 'Error: ${e.toString()}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
     }
 
-    setState(() => _loading = false);
+    setState(() => loading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Top Up Wallet'),
-        backgroundColor: Colors.green,
-      ),
+      appBar: AppBar(title: const Text('Top-Up Balance')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const Text('Enter Amount', style: TextStyle(fontSize: 16)),
-            const SizedBox(height: 10),
             TextField(
-              controller: _amountController,
+              controller: emailController,
+              decoration: const InputDecoration(labelText: 'Receiver Email'),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: amountController,
+              decoration: const InputDecoration(labelText: 'Amount'),
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                hintText: '₦0.00',
-                border: OutlineInputBorder(),
-              ),
             ),
-            const SizedBox(height: 20),
-            const Text('Choose Method', style: TextStyle(fontSize: 16)),
-            ListTile(
-              title: const Text('Wallet'),
-              leading: Radio<String>(
-                value: 'wallet',
-                groupValue: _selectedMethod,
-                onChanged: (value) {
-                  setState(() => _selectedMethod = value!);
-                },
-              ),
-            ),
-            ListTile(
-              title: const Text('Card'),
-              leading: Radio<String>(
-                value: 'card',
-                groupValue: _selectedMethod,
-                onChanged: (value) {
-                  setState(() => _selectedMethod = value!);
-                },
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: _loading ? null : _submitTopUp,
-              icon: const Icon(Icons.arrow_upward),
-              label: _loading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Top Up'),
-            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: loading ? null : _topUpBalance,
+              child: loading
+                  ? const CircularProgressIndicator()
+                  : const Text('Top-Up Now'),
+            )
           ],
         ),
       ),

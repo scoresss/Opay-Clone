@@ -28,6 +28,8 @@ dependencies:
   permission_handler: ^11.3.1
   pdf_image_renderer: ^1.0.1
   share_plus: ^7.2.1
+  flutter_secure_storage: ^9.0.0
+  local_auth: ^2.1.7
 dev_dependencies:
   flutter_test:
     sdk: flutter

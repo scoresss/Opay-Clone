@@ -7,7 +7,11 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
 import 'package:pdf_image_renderer/pdf_image_renderer.dart';
+import 'package:share_plus/share_plus.dart';
 
+static Future<void> shareReceiptImage(File imageFile) async {
+  await Share.shareXFiles([XFile(imageFile.path)], text: 'My Opay Receipt');
+}
 class ReceiptService {
   /// ✅ Generate Opay-style PDF Receipt
   static Future<Uint8List> generateReceipt({

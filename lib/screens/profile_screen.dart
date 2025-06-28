@@ -1,10 +1,14 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import '../utils/constants.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({super.key});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -13,6 +17,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final TextEditingController _nameController = TextEditingController();
   bool _loading = false;
+  String? _photoUrl;
 
   @override
   void initState() {
@@ -25,9 +30,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (user == null) return;
 
     final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-    if (doc.exists) {
-      final data = doc.data();
-      _nameController.text = data?['name'] ?? '';
+    final data = doc.data();
+    if (data != null) {
+      _nameController.text = data['name'] ?? '';
+      _photoUrl = data['photoUrl'];
+      setState(() {});
     }
   }
 
@@ -35,8 +42,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final newName = _nameController.text.trim();
-    if (newName.isEmpty) {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
       Fluttertoast.showToast(msg: 'Name cannot be empty');
       return;
     }
@@ -45,14 +52,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-        'name': newName,
+        'name': name,
       });
-
       Fluttertoast.showToast(msg: 'Profile updated');
     } catch (e) {
-      Fluttertoast.showToast(msg: 'Error: ${e.toString()}');
+      Fluttertoast.showToast(msg: 'Error: $e');
     } finally {
       setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+
+    if (picked != null) {
+      final file = File(picked.path);
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+      final storageRef = FirebaseStorage.instance.ref().child('profile_pictures/$uid.jpg');
+
+      setState(() => _loading = true);
+
+      try {
+        await storageRef.putFile(file);
+        final downloadUrl = await storageRef.getDownloadURL();
+
+        await FirebaseFirestore.instance.collection('users').doc(uid).update({
+          'photoUrl': downloadUrl,
+        });
+
+        setState(() => _photoUrl = downloadUrl);
+        Fluttertoast.showToast(msg: 'Photo updated');
+      } catch (e) {
+        Fluttertoast.showToast(msg: 'Upload failed: $e');
+      } finally {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -61,12 +96,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final email = FirebaseAuth.instance.currentUser?.email ?? '';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Profile')),
+      appBar: AppBar(title: const Text('Edit Profile'), backgroundColor: AppColors.primary),
       body: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: AppPadding.screen,
         child: Column(
           children: [
-            Text('Email: $email'),
+            const SizedBox(height: 10),
+            Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                CircleAvatar(
+                  radius: 45,
+                  backgroundImage: _photoUrl != null
+                      ? NetworkImage(_photoUrl!)
+                      : const AssetImage('assets/default_user.png') as ImageProvider,
+                  backgroundColor: Colors.grey.shade300,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.camera_alt, size: 22, color: Colors.white),
+                  onPressed: _pickAndUploadImage,
+                  tooltip: "Change Profile Photo",
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text('Email: $email', style: AppTextStyles.subtitle),
             const SizedBox(height: 20),
             TextField(
               controller: _nameController,
@@ -80,10 +134,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ? const CircularProgressIndicator()
                 : ElevatedButton(
                     onPressed: _updateProfile,
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50),
-                      backgroundColor: Colors.green,
-                    ),
                     child: const Text('Save Changes'),
                   ),
           ],

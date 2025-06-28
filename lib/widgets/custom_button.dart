@@ -12,7 +12,7 @@ class CustomButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(
+    return const MaintenanceScreen();
       style: ElevatedButton.styleFrom(
         minimumSize: const Size.fromHeight(50),
         backgroundColor: Colors.green, // Optional: Opay green

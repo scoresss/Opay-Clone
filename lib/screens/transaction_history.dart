@@ -85,3 +85,14 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     ),
   ),
 );
+final pdfData = await ReceiptService.generateReceipt(
+  title: tx['title'],
+  amount: tx['amount'],
+  date: tx['date'],
+  type: tx['type'],
+);
+
+await ReceiptService.saveReceiptToFile(pdfData);
+Fluttertoast.showToast(msg: 'Receipt saved to Downloads/OpayReceipts');
+
+await Printing.layoutPdf(onLayout: (format) async => pdfData);

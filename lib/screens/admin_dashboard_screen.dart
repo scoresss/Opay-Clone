@@ -9,35 +9,59 @@ class AdminDashboardScreen extends StatefulWidget {
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
-  bool maintenanceMode = false;
+  bool maintenanceGlobal = false;
+  bool airtimeOff = false;
+  bool electricityOff = false;
+  bool transferOff = false;
   bool loading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadMaintenanceStatus();
+    _loadMaintenanceSettings();
   }
 
-  Future<void> _loadMaintenanceStatus() async {
-    final doc = await FirebaseFirestore.instance
-        .collection('app_settings')
-        .doc('global')
-        .get();
+  Future<void> _loadMaintenanceSettings() async {
+    final globalDoc = await FirebaseFirestore.instance.collection('app_settings').doc('global').get();
+    final featureDoc = await FirebaseFirestore.instance.collection('app_settings').doc('maintenance').get();
+
     setState(() {
-      maintenanceMode = doc.data()?['maintenance'] ?? false;
+      maintenanceGlobal = globalDoc.data()?['maintenance'] ?? false;
+      airtimeOff = featureDoc.data()?['airtime'] ?? false;
+      electricityOff = featureDoc.data()?['electricity'] ?? false;
+      transferOff = featureDoc.data()?['transfer'] ?? false;
       loading = false;
     });
   }
 
-  Future<void> _toggleMaintenance(bool value) async {
-    setState(() => maintenanceMode = value);
-    await FirebaseFirestore.instance
-        .collection('app_settings')
-        .doc('global')
-        .set({'maintenance': value}, SetOptions(merge: true));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(value ? 'App disabled' : 'App enabled')),
-    );
+  Future<void> _toggleGlobal(bool value) async {
+    await FirebaseFirestore.instance.collection('app_settings').doc('global').set({
+      'maintenance': value
+    }, SetOptions(merge: true));
+
+    setState(() => maintenanceGlobal = value);
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(value ? '🔴 App globally disabled' : '🟢 App enabled'),
+    ));
+  }
+
+  Future<void> _toggleFeature(String feature, bool value) async {
+    await FirebaseFirestore.instance.collection('app_settings').doc('maintenance').set({
+      feature: value
+    }, SetOptions(merge: true));
+
+    setState(() {
+      if (feature == 'airtime') airtimeOff = value;
+      if (feature == 'electricity') electricityOff = value;
+      if (feature == 'transfer') transferOff = value;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(value
+          ? '$feature feature disabled'
+          : '$feature feature enabled'),
+    ));
   }
 
   @override
@@ -45,18 +69,34 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     if (loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Admin Dashboard'),
-        backgroundColor: Colors.green,
-      ),
+      appBar: AppBar(title: const Text('Admin Dashboard'), backgroundColor: Colors.green),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           SwitchListTile(
-            title: const Text('🛠 App Maintenance Mode'),
-            subtitle: const Text('Globally disable app for all users'),
-            value: maintenanceMode,
-            onChanged: _toggleMaintenance,
+            title: const Text('🛠 Global Maintenance'),
+            value: maintenanceGlobal,
+            onChanged: _toggleGlobal,
+          ),
+          const Divider(),
+          const Text('Per-Feature Controls', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          SwitchListTile(
+            title: const Text('📲 Airtime'),
+            subtitle: const Text('Disable Airtime purchase'),
+            value: airtimeOff,
+            onChanged: (v) => _toggleFeature('airtime', v),
+          ),
+          SwitchListTile(
+            title: const Text('💡 Electricity'),
+            subtitle: const Text('Disable Electricity service'),
+            value: electricityOff,
+            onChanged: (v) => _toggleFeature('electricity', v),
+          ),
+          SwitchListTile(
+            title: const Text('💸 Transfers'),
+            subtitle: const Text('Disable money transfers'),
+            value: transferOff,
+            onChanged: (v) => _toggleFeature('transfer', v),
           ),
           const Divider(height: 30),
           ListTile(
@@ -66,8 +106,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.analytics),
-            title: const Text('View Analytics'),
-            onTap: () => Navigator.pushNamed(context, '/analytics'),
+            title: const Text('Admin Analytics'),
+            onTap: () => Navigator.pushNamed(context, '/admin_analytics'),
           ),
           ListTile(
             leading: const Icon(Icons.list_alt),

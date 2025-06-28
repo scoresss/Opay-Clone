@@ -1,9 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -13,161 +13,99 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final uid = FirebaseAuth.instance.currentUser?.uid;
-  String userName = 'User';
-  String userEmail = '';
-  int referralCount = 0;
-  double referralEarnings = 0;
+  String name = '';
+  String email = '';
+  String? profileUrl;
+  bool loading = false;
+  final uid = FirebaseAuth.instance.currentUser!.uid;
 
   @override
   void initState() {
     super.initState();
     _loadUser();
-    _loadReferralStats();
   }
 
   Future<void> _loadUser() async {
-    if (uid == null) return;
     final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    if (doc.exists) {
+    final data = doc.data();
+    if (data != null) {
       setState(() {
-        userName = doc.data()?['name'] ?? 'User';
-        userEmail = doc.data()?['email'] ?? '';
+        name = data['name'] ?? '';
+        email = data['email'] ?? '';
+        profileUrl = data['profile'] ?? null;
       });
     }
   }
 
-  Future<void> _loadReferralStats() async {
-    if (uid == null) return;
+  Future<void> _pickAndUploadImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
 
-    final referredUsers = await FirebaseFirestore.instance
-        .collection('users')
-        .where('referralUsed', isEqualTo: uid)
-        .get();
-    referralCount = referredUsers.size;
+    if (picked == null) return;
 
-    final txs = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('transactions')
-        .where('type', isEqualTo: 'referral')
-        .get();
+    setState(() => loading = true);
 
-    referralEarnings = 0;
-    for (var tx in txs.docs) {
-      referralEarnings += (tx.data()['amount'] ?? 0).toDouble();
-    }
+    final storageRef = FirebaseStorage.instance.ref().child('profile_pics/$uid.jpg');
+    await storageRef.putFile(File(picked.path));
+    final url = await storageRef.getDownloadURL();
 
-    setState(() {});
-  }
+    await FirebaseFirestore.instance.collection('users').doc(uid).update({'profile': url});
+    setState(() {
+      profileUrl = url;
+      loading = false;
+    });
 
-  void _copyReferralCode() {
-    Clipboard.setData(ClipboardData(text: uid ?? ''));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Referral code copied')),
-    );
-  }
-
-  void _shareReferralCode() {
-    final msg = 'Use my referral code to register and get a bonus!';
-    Share.share(msg);
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated')));
   }
 
   @override
   Widget build(BuildContext context) {
-    if (uid == null) {
-      return const Scaffold(body: Center(child: Text('User not logged in')));
-    }
-
     return Scaffold(
       appBar: AppBar(title: const Text('Profile'), backgroundColor: Colors.green),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         children: [
-          const Icon(Icons.person, size: 100, color: Colors.green),
-          const SizedBox(height: 10),
-          Text(
-            userName,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          Text(
-            userEmail,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 14, color: Colors.grey),
-          ),
-
-          const SizedBox(height: 30),
-          const Divider(),
-
-          const Text('Referral Code', style: TextStyle(fontSize: 18)),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.green),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Center(
+            child: Stack(
+              alignment: Alignment.bottomRight,
               children: [
-                const Text('••••••••••', style: TextStyle(letterSpacing: 2)),
-                IconButton(icon: const Icon(Icons.copy), onPressed: _copyReferralCode),
-                IconButton(icon: const Icon(Icons.share), onPressed: _shareReferralCode),
+                CircleAvatar(
+                  radius: 60,
+                  backgroundImage: profileUrl != null ? NetworkImage(profileUrl!) : null,
+                  child: profileUrl == null ? const Icon(Icons.person, size: 60) : null,
+                ),
+                Positioned(
+                  bottom: 0,
+                  right: 4,
+                  child: GestureDetector(
+                    onTap: loading ? null : _pickAndUploadImage,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.green,
+                      ),
+                      child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                    ),
+                  ),
+                )
               ],
             ),
           ),
-
           const SizedBox(height: 20),
-          const Divider(),
-          const Text('Referral Summary', style: TextStyle(fontSize: 18)),
-          const SizedBox(height: 8),
-          Card(
-            child: ListTile(
-              title: const Text('👥 Total Users Referred'),
-              trailing: Text('$referralCount'),
-            ),
-          ),
-          Card(
-            child: ListTile(
-              title: const Text('💰 Referral Earnings'),
-              trailing: Text('₦${referralEarnings.toStringAsFixed(2)}'),
-            ),
-          ),
-
-          const SizedBox(height: 20),
-          const Divider(),
-          const Text('Referred Users', style: TextStyle(fontSize: 18)),
-          _buildReferredUsersList(),
+          Center(child: Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+          Center(child: Text(email, style: const TextStyle(color: Colors.grey))),
+          const SizedBox(height: 40),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.logout),
+            label: const Text('Logout'),
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              if (context.mounted) Navigator.pushReplacementNamed(context, '/login');
+            },
+          )
         ],
       ),
-    );
-  }
-
-  Widget _buildReferredUsersList() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .where('referralUsed', isEqualTo: uid)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const CircularProgressIndicator();
-        final users = snapshot.data!.docs;
-        if (users.isEmpty) return const Text('No referrals yet.');
-
-        return Column(
-          children: users.map((doc) {
-            final name = doc['name'] ?? 'User';
-            final date = doc['createdAt'] ?? '';
-            final joined = DateFormat.yMMMd().format(DateTime.parse(date));
-            return ListTile(
-              leading: const Icon(Icons.person_outline),
-              title: Text(name),
-              subtitle: Text('Joined: $joined'),
-            );
-          }).toList(),
-        );
-      },
     );
   }
 }

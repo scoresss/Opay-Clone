@@ -6,9 +6,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
+import 'package:pdf_image_renderer/pdf_image_renderer.dart';
 
 class ReceiptService {
-  /// ✅ Generate PDF Receipt styled like Opay
+  /// ✅ Generate Opay-style PDF Receipt
   static Future<Uint8List> generateReceipt({
     required String title,
     required double amount,
@@ -29,7 +30,7 @@ class ReceiptService {
         pageFormat: PdfPageFormat.a4,
         build: (context) => pw.Stack(
           children: [
-            // ✅ Watermark
+            // Watermark
             pw.Positioned.fill(
               child: pw.Opacity(
                 opacity: 0.06,
@@ -45,7 +46,7 @@ class ReceiptService {
               ),
             ),
 
-            // ✅ Main content
+            // Main content
             pw.Padding(
               padding: const pw.EdgeInsets.all(32),
               child: pw.Column(
@@ -106,12 +107,10 @@ class ReceiptService {
     return pdf.save();
   }
 
-  /// ✅ Save PDF to Downloads folder
+  /// ✅ Save as PDF file
   static Future<void> saveReceiptToFile(Uint8List pdfData) async {
     final status = await Permission.storage.request();
-    if (!status.isGranted) {
-      throw Exception("Storage permission not granted");
-    }
+    if (!status.isGranted) throw Exception("Storage permission not granted");
 
     final directory = Directory('/storage/emulated/0/Download/OpayReceipts');
     if (!(await directory.exists())) {
@@ -123,11 +122,42 @@ class ReceiptService {
 
     final file = File(filePath);
     await file.writeAsBytes(pdfData);
-
-    print("✅ Receipt saved to: $filePath");
+    print("✅ PDF saved to: $filePath");
   }
 
-  /// 🧱 Reusable row builder for layout
+  /// ✅ Save as PNG image (first page of receipt)
+  static Future<void> saveReceiptAsImage(Uint8List pdfData) async {
+    final status = await Permission.storage.request();
+    if (!status.isGranted) throw Exception("Storage permission not granted");
+
+    final now = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    final directory = Directory('/storage/emulated/0/Download/OpayReceipts');
+    if (!(await directory.exists())) {
+      await directory.create(recursive: true);
+    }
+
+    // Save temp PDF
+    final tempDir = await getTemporaryDirectory();
+    final tempPath = '${tempDir.path}/temp_receipt_$now.pdf';
+    final pdfFile = File(tempPath);
+    await pdfFile.writeAsBytes(pdfData);
+
+    // Render PDF to image
+    final imageBytes = await PdfImageRenderer.renderPdfPageAsBytes(
+      pdfFilePath: tempPath,
+      pageNumber: 1,
+      scale: 2.0, // quality
+    );
+
+    // Save PNG
+    final imagePath = '${directory.path}/receipt_$now.png';
+    final imageFile = File(imagePath);
+    await imageFile.writeAsBytes(imageBytes);
+
+    print("🖼️ Image saved to: $imagePath");
+  }
+
+  /// 🧱 Helper for label rows
   static pw.Widget _labelRow(String label, String value, {PdfColor? valueColor}) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 4),

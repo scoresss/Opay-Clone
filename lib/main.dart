@@ -13,6 +13,7 @@ import 'package:opay_clone/screens/profile_screen.dart';
 import 'package:opay_clone/screens/transaction_history_screen.dart';
 import 'package:opay_clone/screens/support_chat_screen.dart';
 import 'package:opay_clone/screens/topup_screen.dart';
+import 'package:opay_clone/screens/admin_analytics_screen.dart'; // ✅ added
 import 'package:opay_clone/services/notification_service.dart';
 
 void main() async {
@@ -34,7 +35,6 @@ class OpayApp extends StatelessWidget {
         primarySwatch: Colors.green,
         useMaterial3: true,
       ),
-      
       home: const AppGatekeeper(),
       routes: {
         '/splash': (context) => const SplashScreen(),
@@ -48,7 +48,8 @@ class OpayApp extends StatelessWidget {
         '/profile': (context) => const ProfileScreen(),
         '/history': (context) => const TransactionHistoryScreen(),
         '/support': (context) => const SupportChatScreen(),
-        '/topup': (context) => const TopUpScreen(), // ✅ Added
+        '/topup': (context) => const TopUpScreen(),
+        '/analytics': (context) => const AdminAnalyticsScreen(), // ✅ New route added
       },
     );
   }

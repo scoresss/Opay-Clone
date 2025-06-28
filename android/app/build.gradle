@@ -1,3 +1,6 @@
+apply plugin: 'com.android.application'
+apply plugin: 'com.google.gms.google-services'
+
 android {
     compileSdkVersion 34
 
@@ -7,7 +10,19 @@ android {
         targetSdkVersion 34
         versionCode 1
         versionName "1.0"
+
         multiDexEnabled true
+    }
+
+    buildTypes {
+        release {
+            // Enable code shrinking and obfuscation
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile(
+                'proguard-android-optimize.txt'
+            ), 'proguard-rules.pro'
+        }
     }
 
     compileOptions {
@@ -17,10 +32,11 @@ android {
 }
 
 dependencies {
-    implementation platform('com.google.firebase:firebase-bom:32.7.0')
-    implementation 'com.google.firebase:firebase-auth-ktx'
-    implementation 'com.google.firebase:firebase-core'
-}
+    implementation platform('com.google.firebase:firebase-bom:32.7.3')
+    implementation 'com.google.firebase:firebase-analytics'
+    implementation 'com.google.firebase:firebase-auth'
+    implementation 'com.google.firebase:firebase-firestore'
+    implementation 'com.google.firebase:firebase-messaging'
 
-// Make sure this line is at the bottom of the file
-apply plugin: 'com.google.gms.google-services'
+    implementation 'androidx.multidex:multidex:2.0.1'
+}

@@ -2,6 +2,7 @@ apply plugin: 'com.android.application'
 apply plugin: 'com.google.gms.google-services'
 
 android {
+    namespace "com.example.opay" // ✅ Required for newer SDKs
     compileSdkVersion 34
 
     defaultConfig {
@@ -16,7 +17,6 @@ android {
 
     buildTypes {
         release {
-            // Enable code shrinking and obfuscation
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile(
@@ -28,6 +28,10 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = "1.8"
     }
 }
 

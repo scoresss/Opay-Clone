@@ -43,7 +43,11 @@ class _AdminScreenState extends State<AdminScreen> {
         final newBalance = currentBalance + amount;
 
         await FirestoreService().updateBalance(uid, newBalance);
-
+// After Firestore update and transaction log
+await NotificationService.sendPushNotification(
+  title: 'Admin Credit',
+  body: 'You received ₦$amount from Admin',
+);
         // Log top-up transaction
         await FirestoreService().addTransaction(uid, {
           'title': 'Top-up from Admin',

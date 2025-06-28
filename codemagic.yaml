@@ -11,15 +11,10 @@ workflows:
       - name: Get dependencies
         script: flutter pub get
       - name: Build Android AAB
-        script: flutter build appbundle \
-          --release \
-          --obfuscate \
-          --split-debug-info=build/secure
+        script: flutter build appbundle --release --obfuscate --split-debug-info=build/secure
     artifacts:
       - build/app/outputs/bundle/release/*.aab
     publishing:
       email:
         recipients:
-          - your-email@example.com
-        on_success: always
-        on_failure: always
+          - morgause50@gmail.com

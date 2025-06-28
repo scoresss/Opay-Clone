@@ -3,11 +3,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/lock_screen.dart';
-import 'screens/dashboard_screen.dart';
+import 'screens/splash_screen.dart';
+import 'screens/dashboard.dart'; // ✅ User dashboard
 import 'screens/admin_dashboard_screen.dart';
 import 'screens/top_up_screen.dart';
 import 'services/role_service.dart';
@@ -32,7 +32,7 @@ class _OpayAppState extends State<OpayApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _watchForceLogout(); // 👈 Listen for remote logout
+    _watchForceLogout();
   }
 
   @override
@@ -57,7 +57,10 @@ class _OpayAppState extends State<OpayApp> with WidgetsBindingObserver {
           .snapshots()
           .listen((doc) async {
         if (doc.exists && doc.data()?['forceLogout'] == true) {
-          await FirebaseFirestore.instance.collection('users').doc(user.uid).update({'forceLogout': false});
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .update({'forceLogout': false});
           await FirebaseAuth.instance.signOut();
           if (mounted) {
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
@@ -70,7 +73,7 @@ class _OpayAppState extends State<OpayApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Opay',
+      title: 'Opay App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.green),
       home: SplashScreen(
@@ -85,20 +88,22 @@ class _OpayAppState extends State<OpayApp> with WidgetsBindingObserver {
           } else {
             final isAdmin = await RoleService.isAdmin();
             if (isAdmin) {
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen()));
+              Navigator.pushReplacement(
+                  context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen()));
             } else {
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const Dashboard()));
             }
           }
         },
       ),
       routes: {
-        '/register': (_) => const RegisterScreen(),
         '/login': (_) => const LoginScreen(),
-        '/dashboard': (_) => const DashboardScreen(),
+        '/register': (_) => const RegisterScreen(),
         '/lock': (_) => const LockScreen(),
+        '/dashboard': (_) => const Dashboard(),
         '/admin_dashboard': (_) => const AdminDashboardScreen(),
-        '/topup': (_) => const TopUpScreen(), // ✅ New: Top-up route
+        '/topup': (_) => const TopUpScreen(),
+        // Add others like airtime, electricity, send_money, history...
       },
     );
   }

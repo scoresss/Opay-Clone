@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
 import '../services/receipt_service.dart';
+import '../screens/receipt_view_screen.dart';
 import '../utils/constants.dart';
 
 class TransactionHistoryScreen extends StatefulWidget {
@@ -57,7 +58,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                   return const Center(child: Text('No transactions found'));
                 }
 
-                // Group by formatted date
+                // Group by date
                 final grouped = <String, List<Map<String, dynamic>>>{};
                 for (var tx in allTx) {
                   final rawDate = tx['date'] ?? '';
@@ -66,7 +67,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                 }
 
                 final sortedDates = grouped.keys.toList()
-                  ..sort((a, b) => b.compareTo(a)); // latest first
+                  ..sort((a, b) => b.compareTo(a));
 
                 return ListView.builder(
                   padding: const EdgeInsets.all(12),
@@ -102,7 +103,6 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     );
   }
 
-  /// 🔍 Search input field
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -117,7 +117,6 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     );
   }
 
-  /// 🧠 Individual transaction card
   Widget _buildTransactionTile(Map<String, dynamic> tx) {
     final title = tx['title'] ?? 'Transaction';
     final amount = tx['amount'] ?? 0;
@@ -142,11 +141,14 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // 📥 Save
                 IconButton(
                   icon: const Icon(Icons.download),
                   tooltip: 'Save Receipt',
                   onPressed: () async {
-                    final confirm = await _showConfirmDialog('Save Receipt', 'Save this receipt as PDF and PNG?');
+                    final confirm = await _showConfirmDialog(
+                      'Save Receipt', 'Save this receipt as PDF and PNG?',
+                    );
                     if (confirm == true) {
                       final pdfData = await ReceiptService.generateReceipt(
                         title: title,
@@ -156,19 +158,46 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                       );
                       await ReceiptService.saveReceiptToFile(pdfData);
                       await ReceiptService.saveReceiptAsImage(pdfData);
-                      Fluttertoast.showToast(msg: 'Saved to Download/OpayReceipts');
+                      Fluttertoast.showToast(
+                          msg: 'Saved to Download/OpayReceipts');
                     }
                   },
                 ),
+
+                // 👁 View
+                IconButton(
+                  icon: const Icon(Icons.visibility),
+                  tooltip: 'View Receipt',
+                  onPressed: () async {
+                    final now = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+                    final path = '/storage/emulated/0/Download/OpayReceipts/receipt_$now.png';
+                    final file = File(path);
+
+                    if (await file.exists()) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ReceiptViewScreen(imagePath: path),
+                        ),
+                      );
+                    } else {
+                      Fluttertoast.showToast(msg: 'Receipt not found. Save it first.');
+                    }
+                  },
+                ),
+
+                // 📤 Share
                 IconButton(
                   icon: const Icon(Icons.share),
                   tooltip: 'Share Receipt',
                   onPressed: () async {
-                    final confirm = await _showConfirmDialog('Share Receipt', 'Share saved receipt image?');
+                    final confirm = await _showConfirmDialog(
+                      'Share Receipt', 'Share saved receipt image?',
+                    );
                     if (confirm == true) {
                       final now = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-                      final path = '/storage/emulated/0/Download/OpayReceipts/receipt_$now.png';
-                      final file = File(path);
+                      final filePath = '/storage/emulated/0/Download/OpayReceipts/receipt_$now.png';
+                      final file = File(filePath);
 
                       if (await file.exists()) {
                         await ReceiptService.shareReceiptImage(file);

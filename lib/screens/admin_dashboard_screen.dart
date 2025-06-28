@@ -58,9 +58,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     });
 
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(value
-          ? '$feature feature disabled'
-          : '$feature feature enabled'),
+      content: Text(value ? '$feature feature disabled' : '$feature feature enabled'),
     ));
   }
 
@@ -114,8 +112,88 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             title: const Text('Transaction History'),
             onTap: () => Navigator.pushNamed(context, '/history'),
           ),
+          const Divider(height: 30),
+          const Text('🛠 Remote Logout User', style: TextStyle(fontWeight: FontWeight.bold)),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.logout),
+              label: const Text('Force Logout User by Email'),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (_) => const ForceLogoutDialog(),
+                );
+              },
+            ),
+          ),
         ],
       ),
+    );
+  }
+}
+
+// 🔄 Popup to Force Logout User
+class ForceLogoutDialog extends StatefulWidget {
+  const ForceLogoutDialog({super.key});
+
+  @override
+  State<ForceLogoutDialog> createState() => _ForceLogoutDialogState();
+}
+
+class _ForceLogoutDialogState extends State<ForceLogoutDialog> {
+  final emailController = TextEditingController();
+  bool loading = false;
+
+  Future<void> forceLogout() async {
+    final email = emailController.text.trim();
+    if (email.isEmpty) return;
+
+    setState(() => loading = true);
+
+    try {
+      final query = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (query.docs.isEmpty) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User not found')));
+        return;
+      }
+
+      await query.docs.first.reference.set({'forceLogout': true}, SetOptions(merge: true));
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Logout command sent to user')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+
+    setState(() => loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Force Logout User'),
+      content: TextField(
+        controller: emailController,
+        decoration: const InputDecoration(labelText: 'Enter user email'),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: loading ? null : forceLogout,
+          child: loading ? const CircularProgressIndicator() : const Text('Logout'),
+        ),
+      ],
     );
   }
 }

@@ -1,28 +1,32 @@
-# Flutter engine
+# Flutter core
 -keep class io.flutter.** { *; }
--dontwarn io.flutter.embedding.**
+-keep class io.flutter.plugins.** { *; }
+-keep class io.flutter.embedding.** { *; }
 
-# Firebase
+# Firebase SDKs
 -keep class com.google.firebase.** { *; }
 -dontwarn com.google.firebase.**
+-keep class com.google.android.gms.** { *; }
+-dontwarn com.google.android.gms.**
 
-# Firestore models
+# Keep models with Gson (Firestore)
 -keepclassmembers class * {
-    @com.google.firebase.firestore.PropertyName <methods>;
+  @com.google.gson.annotations.SerializedName <fields>;
 }
+-keep class com.google.gson.** { *; }
 
-# Your package
--keep class com.example.opay.** { *; }
--dontwarn com.example.opay.**
+# Flutter plugins (camera, image picker, etc.)
+-keep class io.flutter.plugins.imagepicker.** { *; }
+-keep class io.flutter.plugins.camera.** { *; }
 
-# Messaging
--keep class com.google.firebase.messaging.FirebaseMessagingService { *; }
+# Multidex support
+-keep class androidx.multidex.** { *; }
 
-# AndroidX
--dontwarn androidx.**
--keep class androidx.** { *; }
+# Keep MainActivity
+-keep class com.example.opay.MainActivity { *; }
 
-# JSON models
--keepclassmembers class * {
-    @com.google.gson.annotations.SerializedName <fields>;
-}
+# Method channels
+-keep class io.flutter.plugin.common.MethodChannel { *; }
+
+# Keep annotations
+-keepattributes *Annotation*

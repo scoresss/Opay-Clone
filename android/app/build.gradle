@@ -2,7 +2,7 @@ apply plugin: 'com.android.application'
 apply plugin: 'com.google.gms.google-services'
 
 android {
-    namespace "com.example.opay" // ✅ Required for newer SDKs
+    namespace "com.example.opay"
     compileSdkVersion 34
 
     defaultConfig {
@@ -36,11 +36,16 @@ android {
 }
 
 dependencies {
+    // Firebase BoM handles versions
     implementation platform('com.google.firebase:firebase-bom:32.7.3')
+
+    // Firebase SDKs
     implementation 'com.google.firebase:firebase-analytics'
     implementation 'com.google.firebase:firebase-auth'
     implementation 'com.google.firebase:firebase-firestore'
     implementation 'com.google.firebase:firebase-messaging'
+    implementation 'com.google.firebase:firebase-storage'
 
+    // MultiDex (required for many plugins)
     implementation 'androidx.multidex:multidex:2.0.1'
 }

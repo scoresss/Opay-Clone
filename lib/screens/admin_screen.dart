@@ -31,6 +31,7 @@ class _AdminScreenState extends State<AdminScreen> {
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (isDown)
                   Container(
@@ -51,9 +52,13 @@ class _AdminScreenState extends State<AdminScreen> {
                       textAlign: TextAlign.center,
                     ),
                   ),
+
+                // 🔄 Maintenance toggle
                 _buildMaintenanceToggle(isDown),
                 const Divider(),
-                const SizedBox(height: 20),
+
+                // 💰 Top-up section
+                const SizedBox(height: 10),
                 const Text('Top Up User Balance', style: TextStyle(fontSize: 18)),
                 const SizedBox(height: 10),
                 TextField(
@@ -73,11 +78,22 @@ class _AdminScreenState extends State<AdminScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                ElevatedButton(
+                ElevatedButton.icon(
                   onPressed: _loading ? null : _topUpBalance,
-                  child: _loading
+                  icon: const Icon(Icons.add),
+                  label: _loading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text('Add Balance'),
+                ),
+
+                const SizedBox(height: 30),
+                // 📊 Analytics Button
+                ListTile(
+                  leading: const Icon(Icons.pie_chart),
+                  title: const Text('View Analytics'),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/analytics');
+                  },
                 ),
               ],
             ),

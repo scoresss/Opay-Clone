@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../services/firestore_service.dart';
+import '../services/notification_service.dart';
 import '../utils/constants.dart';
 import '../widgets/custom_button.dart';
 
@@ -42,18 +43,21 @@ class _AdminScreenState extends State<AdminScreen> {
         final currentBalance = (userDoc['balance'] ?? 0).toDouble();
         final newBalance = currentBalance + amount;
 
+        // Update balance
         await FirestoreService().updateBalance(uid, newBalance);
-// After Firestore update and transaction log
-await NotificationService.sendPushNotification(
-  title: 'Admin Credit',
-  body: 'You received ₦$amount from Admin',
-);
-        // Log top-up transaction
+
+        // Add transaction log
         await FirestoreService().addTransaction(uid, {
           'title': 'Top-up from Admin',
           'amount': amount,
           'date': DateTime.now().toString(),
         });
+
+        // 🔔 Send notification
+        await NotificationService.sendPushNotification(
+          title: 'Top-up Successful',
+          body: 'You received ₦$amount from Admin',
+        );
 
         Fluttertoast.showToast(msg: '₦$amount added to $name');
         _emailController.clear();
@@ -69,7 +73,10 @@ await NotificationService.sendPushNotification(
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Admin Panel'), backgroundColor: AppColors.primary),
+      appBar: AppBar(
+        title: const Text('Admin Panel'),
+        backgroundColor: AppColors.primary,
+      ),
       body: Padding(
         padding: AppPadding.screen,
         child: Form(

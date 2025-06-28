@@ -8,7 +8,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
 
 class ReceiptService {
-  /// ✅ Generate PDF Receipt with logo + watermark
+  /// ✅ Generate PDF Receipt styled like Opay
   static Future<Uint8List> generateReceipt({
     required String title,
     required double amount,
@@ -22,11 +22,14 @@ class ReceiptService {
     final Uint8List logoBytes = logoData.buffer.asUint8List();
     final logoImage = pw.MemoryImage(logoBytes);
 
+    final String ref = DateFormat('yyyyMMddHHmmss').format(DateTime.now());
+
     pdf.addPage(
       pw.Page(
+        pageFormat: PdfPageFormat.a4,
         build: (context) => pw.Stack(
           children: [
-            // Watermark
+            // ✅ Watermark
             pw.Positioned.fill(
               child: pw.Opacity(
                 opacity: 0.06,
@@ -42,14 +45,15 @@ class ReceiptService {
               ),
             ),
 
-            // Main content
+            // ✅ Main content
             pw.Padding(
               padding: const pw.EdgeInsets.all(32),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Center(child: pw.Image(logoImage, height: 80)),
+                  pw.Center(child: pw.Image(logoImage, height: 60)),
                   pw.SizedBox(height: 20),
+
                   pw.Text(
                     'Transaction Receipt',
                     style: pw.TextStyle(
@@ -57,15 +61,39 @@ class ReceiptService {
                       fontWeight: pw.FontWeight.bold,
                     ),
                   ),
-                  pw.SizedBox(height: 16),
-                  pw.Text('Title: $title'),
-                  pw.Text('Amount: ₦${amount.toStringAsFixed(2)}'),
-                  pw.Text('Type: ${type[0].toUpperCase()}${type.substring(1)}'),
-                  pw.Text('Date: $date'),
+                  pw.SizedBox(height: 12),
+
+                  pw.Container(
+                    padding: const pw.EdgeInsets.all(16),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.grey200,
+                      borderRadius: pw.BorderRadius.circular(8),
+                    ),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        _labelRow('Title', title),
+                        _labelRow(
+                          'Amount',
+                          '₦${amount.toStringAsFixed(2)}',
+                          valueColor: amount >= 0 ? PdfColors.green800 : PdfColors.red,
+                        ),
+                        _labelRow('Type', type[0].toUpperCase() + type.substring(1)),
+                        _labelRow('Date', date),
+                        _labelRow('Reference ID', ref),
+                      ],
+                    ),
+                  ),
+
                   pw.SizedBox(height: 30),
-                  pw.Text(
-                    'Thank you for using Opay Clone.',
-                    style: pw.TextStyle(fontStyle: pw.FontStyle.italic),
+                  pw.Center(
+                    child: pw.Text(
+                      'Thank you for using Opay Clone',
+                      style: pw.TextStyle(
+                        fontStyle: pw.FontStyle.italic,
+                        color: PdfColors.grey600,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -78,7 +106,7 @@ class ReceiptService {
     return pdf.save();
   }
 
-  /// ✅ Save generated PDF to Downloads folder
+  /// ✅ Save PDF to Downloads folder
   static Future<void> saveReceiptToFile(Uint8List pdfData) async {
     final status = await Permission.storage.request();
     if (!status.isGranted) {
@@ -97,5 +125,27 @@ class ReceiptService {
     await file.writeAsBytes(pdfData);
 
     print("✅ Receipt saved to: $filePath");
+  }
+
+  /// 🧱 Reusable row builder for layout
+  static pw.Widget _labelRow(String label, String value, {PdfColor? valueColor}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 4),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.SizedBox(width: 100, child: pw.Text('$label:')),
+          pw.Expanded(
+            child: pw.Text(
+              value,
+              style: pw.TextStyle(
+                fontWeight: pw.FontWeight.bold,
+                color: valueColor ?? PdfColors.black,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

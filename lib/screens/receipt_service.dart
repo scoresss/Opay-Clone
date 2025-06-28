@@ -1,35 +1,14 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
-import 'dart:io';
-import 'package:intl/intl.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:path_provider/path_provider.dart';
 
-static Future<void> saveReceiptToFile(Uint8List pdfData) async {
-  final status = await Permission.storage.request();
-  if (!status.isGranted) {
-    throw Exception("Storage permission not granted");
-  }
-
-  final directory = Directory('/storage/emulated/0/Download/OpayReceipts');
-  if (!(await directory.exists())) {
-    await directory.create(recursive: true);
-  }
-
-  final now = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-  final filePath = '${directory.path}/receipt_$now.pdf';
-
-  final file = File(filePath);
-  await file.writeAsBytes(pdfData);
-
-  print("✅ Saved PDF to $filePath");
-}
-await Printing.layoutPdf(onLayout: (format) async => pdfData);
-await ReceiptService.saveReceiptToFile(pdfData);
-Fluttertoast.showToast(msg: 'Receipt saved to Download/OpayReceipts');
 class ReceiptService {
+  /// ✅ Generate PDF Receipt with logo + watermark
   static Future<Uint8List> generateReceipt({
     required String title,
     required double amount,
@@ -38,7 +17,7 @@ class ReceiptService {
   }) async {
     final pdf = pw.Document();
 
-    // Load your logo
+    // Load logo from assets
     final ByteData logoData = await rootBundle.load('assets/logo.png');
     final Uint8List logoBytes = logoData.buffer.asUint8List();
     final logoImage = pw.MemoryImage(logoBytes);
@@ -47,7 +26,7 @@ class ReceiptService {
       pw.Page(
         build: (context) => pw.Stack(
           children: [
-            // ✅ Watermark (faint Opay)
+            // Watermark
             pw.Positioned.fill(
               child: pw.Opacity(
                 opacity: 0.06,
@@ -63,7 +42,7 @@ class ReceiptService {
               ),
             ),
 
-            // ✅ Main receipt content
+            // Main content
             pw.Padding(
               padding: const pw.EdgeInsets.all(32),
               child: pw.Column(
@@ -97,5 +76,26 @@ class ReceiptService {
     );
 
     return pdf.save();
+  }
+
+  /// ✅ Save generated PDF to Downloads folder
+  static Future<void> saveReceiptToFile(Uint8List pdfData) async {
+    final status = await Permission.storage.request();
+    if (!status.isGranted) {
+      throw Exception("Storage permission not granted");
+    }
+
+    final directory = Directory('/storage/emulated/0/Download/OpayReceipts');
+    if (!(await directory.exists())) {
+      await directory.create(recursive: true);
+    }
+
+    final now = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    final filePath = '${directory.path}/receipt_$now.pdf';
+
+    final file = File(filePath);
+    await file.writeAsBytes(pdfData);
+
+    print("✅ Receipt saved to: $filePath");
   }
 }

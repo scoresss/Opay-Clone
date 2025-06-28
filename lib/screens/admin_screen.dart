@@ -17,7 +17,7 @@ class _AdminScreenState extends State<AdminScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin Panel'),
+        title: const Text('Admin Tools'),
         backgroundColor: Colors.green,
       ),
       body: StreamBuilder<DocumentSnapshot>(
@@ -35,7 +35,6 @@ class _AdminScreenState extends State<AdminScreen> {
               children: [
                 if (isDown)
                   Container(
-                    width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     margin: const EdgeInsets.only(bottom: 12),
                     decoration: BoxDecoration(
@@ -44,27 +43,21 @@ class _AdminScreenState extends State<AdminScreen> {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: const Text(
-                      '⚠ The app is currently in Maintenance Mode!',
-                      style: TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      '⚠ App is currently in Maintenance Mode!',
+                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
                   ),
 
-                // 🔄 Maintenance toggle
                 _buildMaintenanceToggle(isDown),
-                const Divider(),
+                const Divider(height: 30),
 
-                // 💰 Top-up section
-                const SizedBox(height: 10),
                 const Text('Top Up User Balance', style: TextStyle(fontSize: 18)),
                 const SizedBox(height: 10),
                 TextField(
                   controller: _userIdController,
                   decoration: const InputDecoration(
-                    labelText: 'User UID',
+                    labelText: 'User ID (hidden)',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -87,13 +80,10 @@ class _AdminScreenState extends State<AdminScreen> {
                 ),
 
                 const SizedBox(height: 30),
-                // 📊 Analytics Button
                 ListTile(
                   leading: const Icon(Icons.pie_chart),
                   title: const Text('View Analytics'),
-                  onTap: () {
-                    Navigator.pushNamed(context, '/analytics');
-                  },
+                  onTap: () => Navigator.pushNamed(context, '/analytics'),
                 ),
               ],
             ),
@@ -106,7 +96,7 @@ class _AdminScreenState extends State<AdminScreen> {
   Widget _buildMaintenanceToggle(bool currentStatus) {
     return SwitchListTile(
       title: const Text('🛠 App Maintenance Mode'),
-      subtitle: const Text('Disable app for all users remotely'),
+      subtitle: const Text('Globally disable or enable the app'),
       value: currentStatus,
       onChanged: (value) async {
         await FirebaseFirestore.instance
@@ -116,9 +106,7 @@ class _AdminScreenState extends State<AdminScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
-            value
-                ? 'App is now in maintenance mode!'
-                : 'App is now active for all users!',
+            value ? 'App disabled (maintenance mode)' : 'App enabled for all users',
           ),
         ));
       },
@@ -129,8 +117,8 @@ class _AdminScreenState extends State<AdminScreen> {
     final uid = _userIdController.text.trim();
     final amount = double.tryParse(_amountController.text.trim());
 
-    if (uid.isEmpty || amount == null) {
-      _showMsg('Please enter valid UID and amount');
+    if (uid.isEmpty || amount == null || amount <= 0) {
+      _showMsg('Please enter valid user ID and amount');
       return;
     }
 
@@ -140,7 +128,6 @@ class _AdminScreenState extends State<AdminScreen> {
 
     try {
       final userSnap = await userDoc.get();
-
       if (!userSnap.exists) {
         _showMsg('User not found');
         setState(() => _loading = false);
@@ -160,11 +147,11 @@ class _AdminScreenState extends State<AdminScreen> {
         'date': DateTime.now().toIso8601String(),
       });
 
-      _showMsg('Balance updated successfully!');
+      _showMsg('Balance updated successfully');
       _amountController.clear();
       _userIdController.clear();
     } catch (e) {
-      _showMsg('Error: ${e.toString()}');
+      _showMsg('Top-up error: ${e.toString()}');
     }
 
     setState(() => _loading = false);

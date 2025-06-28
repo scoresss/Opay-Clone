@@ -1,55 +1,70 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:opay_clone/screens/app_gatekeeper.dart';
-import 'package:opay_clone/screens/splash_screen.dart';
-import 'package:opay_clone/screens/login_screen.dart';
-import 'package:opay_clone/screens/register_screen.dart';
-import 'package:opay_clone/screens/dashboard_screen.dart';
-import 'package:opay_clone/screens/admin_screen.dart';
-import 'package:opay_clone/screens/send_money_screen.dart';
-import 'package:opay_clone/screens/airtime_screen.dart';
-import 'package:opay_clone/screens/electricity_screen.dart';
-import 'package:opay_clone/screens/profile_screen.dart';
-import 'package:opay_clone/screens/transaction_history_screen.dart';
-import 'package:opay_clone/screens/support_chat_screen.dart';
-import 'package:opay_clone/screens/topup_screen.dart';
-import 'package:opay_clone/screens/admin_analytics_screen.dart'; // ✅ added
-import 'package:opay_clone/services/notification_service.dart';
+import 'package:opay/screens/splash_screen.dart';
+import 'package:opay/screens/lock_screen.dart';
+import 'package:opay/screens/login_screen.dart';
+import 'package:opay/screens/dashboard_screen.dart';
+import 'package:opay/screens/register_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  await NotificationService.initializeFCM();
   runApp(const OpayApp());
 }
 
-class OpayApp extends StatelessWidget {
+class OpayApp extends StatefulWidget {
   const OpayApp({super.key});
+  @override
+  State<OpayApp> createState() => _OpayAppState();
+}
+
+class _OpayAppState extends State<OpayApp> with WidgetsBindingObserver {
+  bool _isLocked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _isLocked = true;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Opay Clone',
+      title: 'Opay',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.green,
-        useMaterial3: true,
+      theme: ThemeData(primarySwatch: Colors.green),
+      home: SplashScreen(
+        onFinish: (context) async {
+          final user = FirebaseAuth.instance.currentUser;
+          if (user == null) {
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+          } else if (_isLocked) {
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LockScreen()));
+            _isLocked = false;
+          } else {
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
+          }
+        },
       ),
-      home: const AppGatekeeper(),
       routes: {
-        '/splash': (context) => const SplashScreen(),
-        '/login': (context) => const LoginScreen(),
-        '/register': (context) => const RegisterScreen(),
-        '/dashboard': (context) => const DashboardScreen(),
-        '/admin': (context) => const AdminScreen(),
-        '/send': (context) => const SendMoneyScreen(),
-        '/airtime': (context) => const AirtimeScreen(),
-        '/electricity': (context) => const ElectricityScreen(),
-        '/profile': (context) => const ProfileScreen(),
-        '/history': (context) => const TransactionHistoryScreen(),
-        '/support': (context) => const SupportChatScreen(),
-        '/topup': (context) => const TopUpScreen(),
-        '/analytics': (context) => const AdminAnalyticsScreen(), // ✅ New route added
+        '/register': (_) => const RegisterScreen(),
+        '/login': (_) => const LoginScreen(),
+        '/dashboard': (_) => const DashboardScreen(),
+        '/lock': (_) => const LockScreen(),
       },
     );
   }

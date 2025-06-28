@@ -1,123 +1,146 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:fluttertoast/fluttertoast.dart';
-import '../services/firestore_service.dart';
-import '../services/notification_service.dart';
-import '../utils/constants.dart';
-import '../widgets/custom_button.dart';
+import 'package:flutter/material.dart';
 
 class AdminScreen extends StatefulWidget {
-  const AdminScreen({Key? key}) : super(key: key);
+  const AdminScreen({super.key});
 
   @override
   State<AdminScreen> createState() => _AdminScreenState();
 }
 
 class _AdminScreenState extends State<AdminScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _userIdController = TextEditingController();
   bool _loading = false;
-
-  Future<void> _topUpBalance() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _loading = true);
-
-      try {
-        final email = _emailController.text.trim();
-        final amount = double.parse(_amountController.text.trim());
-
-        final userQuery = await FirebaseFirestore.instance
-            .collection('users')
-            .where('email', isEqualTo: email)
-            .get();
-
-        if (userQuery.docs.isEmpty) {
-          Fluttertoast.showToast(msg: 'User not found');
-          return;
-        }
-
-        final userDoc = userQuery.docs.first;
-        final uid = userDoc.id;
-        final name = userDoc['name'];
-        final currentBalance = (userDoc['balance'] ?? 0).toDouble();
-        final newBalance = currentBalance + amount;
-
-        // Update balance
-        await FirestoreService().updateBalance(uid, newBalance);
-
-        // Add transaction log
-        await FirestoreService().addTransaction(uid, {
-          'title': 'Top-up from Admin',
-          'amount': amount,
-          'date': DateTime.now().toString(),
-        });
-
-        // 🔔 Send notification
-        await NotificationService.sendPushNotification(
-          title: 'Top-up Successful',
-          body: 'You received ₦$amount from Admin',
-        );
-
-        Fluttertoast.showToast(msg: '₦$amount added to $name');
-        _emailController.clear();
-        _amountController.clear();
-      } catch (e) {
-        Fluttertoast.showToast(msg: 'Error: ${e.toString()}');
-      } finally {
-        setState(() => _loading = false);
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Panel'),
-        backgroundColor: AppColors.primary,
+        backgroundColor: Colors.green,
       ),
-      body: Padding(
-        padding: AppPadding.screen,
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'User Email',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (val) =>
-                    val == null || val.isEmpty ? 'Enter email' : null,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+            _buildMaintenanceToggle(),
+            const Divider(),
+            const SizedBox(height: 20),
+            const Text('Top Up User Balance', style: TextStyle(fontSize: 18)),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _userIdController,
+              decoration: const InputDecoration(
+                labelText: 'User UID',
+                border: OutlineInputBorder(),
               ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _amountController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Amount to Add',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (val) {
-                  if (val == null || val.isEmpty) return 'Enter amount';
-                  if (double.tryParse(val) == null || double.parse(val) <= 0) {
-                    return 'Enter valid amount';
-                  }
-                  return null;
-                },
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _amountController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Amount',
+                border: OutlineInputBorder(),
               ),
-              const SizedBox(height: 30),
-              CustomButton(
-                text: 'Top Up',
-                onPressed: _topUpBalance,
-                loading: _loading,
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _loading ? null : _topUpBalance,
+              child: _loading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text('Add Balance'),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  Future<void> _topUpBalance() async {
+    final uid = _userIdController.text.trim();
+    final amount = double.tryParse(_amountController.text.trim());
+
+    if (uid.isEmpty || amount == null) {
+      _showMsg('Please enter valid UID and amount');
+      return;
+    }
+
+    setState(() => _loading = true);
+
+    final userDoc = FirebaseFirestore.instance.collection('users').doc(uid);
+
+    try {
+      final userSnap = await userDoc.get();
+
+      if (!userSnap.exists) {
+        _showMsg('User not found');
+        setState(() => _loading = false);
+        return;
+      }
+
+      final currentBalance = userSnap.data()?['balance'] ?? 0;
+      final newBalance = currentBalance + amount;
+
+      await userDoc.update({'balance': newBalance});
+
+      await userDoc.collection('transactions').add({
+        'title': 'Admin Top Up',
+        'amount': amount,
+        'type': 'admin',
+        'status': 'success',
+        'date': DateTime.now().toIso8601String(),
+      });
+
+      _showMsg('Balance updated successfully!');
+      _amountController.clear();
+      _userIdController.clear();
+    } catch (e) {
+      _showMsg('Error: ${e.toString()}');
+    }
+
+    setState(() => _loading = false);
+  }
+
+  Widget _buildMaintenanceToggle() {
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('app_settings')
+          .doc('global')
+          .get(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const CircularProgressIndicator();
+
+        final current = snapshot.data!.data() != null
+            ? snapshot.data!.get('maintenance') ?? false
+            : false;
+
+        return SwitchListTile(
+          title: const Text('🛠 App Maintenance Mode'),
+          subtitle: const Text('Disable app for all users remotely'),
+          value: current,
+          onChanged: (value) async {
+            await FirebaseFirestore.instance
+                .collection('app_settings')
+                .doc('global')
+                .set({'maintenance': value}, SetOptions(merge: true));
+
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(
+                value
+                    ? 'App is now in maintenance mode!'
+                    : 'App is now active for all users!',
+              ),
+            ));
+          },
+        );
+      },
+    );
+  }
+
+  void _showMsg(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 }

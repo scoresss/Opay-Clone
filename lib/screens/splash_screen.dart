@@ -34,7 +34,11 @@ Widget build(BuildContext context) {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.account_balance_wallet, size: 80, color: Colors.white),
+          const Icon(
+            Icons.account_balance_wallet,
+            size: 80,
+            color: Colors.white,
+          ),
           const SizedBox(height: 20),
           const Text(
             'Opay Clone',
@@ -43,6 +47,16 @@ Widget build(BuildContext context) {
               fontSize: 26,
               fontWeight: FontWeight.bold,
               letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Secure Mobile Payments for Everyone',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+              fontStyle: FontStyle.italic,
+              letterSpacing: 0.5,
             ),
           ),
           const SizedBox(height: 30),

@@ -30,7 +30,13 @@ class OpayApp extends StatelessWidget {
         primarySwatch: Colors.green,
         useMaterial3: true,
       ),
-      initialRoute: '/',
+      initialRoute: '/splash',
+routes: {
+  '/splash': (context) => const SplashScreen(),
+  '/login': (context) => const LoginScreen(),
+  '/dashboard': (context) => const DashboardScreen(),
+  // ... add other screens
+}
       routes: {
         '/': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),

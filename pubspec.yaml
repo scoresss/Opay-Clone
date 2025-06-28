@@ -29,3 +29,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+image_picker: ^1.0.4
+firebase_storage: ^11.5.6

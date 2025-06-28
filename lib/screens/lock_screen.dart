@@ -1,131 +1,95 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:local_auth/local_auth.dart';
-import 'dashboard_screen.dart'; // Change this to your dashboard screen path
 
 class LockScreen extends StatefulWidget {
-  const LockScreen({Key? key}) : super(key: key);
+  const LockScreen({super.key});
 
   @override
   State<LockScreen> createState() => _LockScreenState();
 }
 
 class _LockScreenState extends State<LockScreen> {
-  final _pinController = TextEditingController();
-  final _storage = const FlutterSecureStorage();
-  final _localAuth = LocalAuthentication();
-  bool _hasPin = false;
+  final TextEditingController _pinController = TextEditingController();
+  final TextEditingController _resetEmailController = TextEditingController();
+  final TextEditingController _newPinController = TextEditingController();
+
+  bool _resetMode = false;
+  bool _loading = false;
+  String? _storedPin;
 
   @override
   void initState() {
     super.initState();
-    _checkIfPinExists();
+    _loadStoredPin();
   }
 
-  Future<void> _checkIfPinExists() async {
-    final pin = await _storage.read(key: 'user_pin');
-    setState(() {
-      _hasPin = pin != null;
-    });
-  }
-
-  Future<void> _submitPin() async {
-    final entered = _pinController.text;
-    if (entered.length != 4) {
-      _showMsg('Enter a 4-digit PIN');
-      return;
+  Future<void> _loadStoredPin() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      setState(() {
+        _storedPin = doc.data()?['pin'];
+      });
     }
+  }
 
-    final savedPin = await _storage.read(key: 'user_pin');
-    if (savedPin == null) {
-      // Set new PIN
-      await _storage.write(key: 'user_pin', value: entered);
-      _showMsg('PIN set. Welcome!');
-      _goToDashboard();
+  Future<void> _verifyPin() async {
+    if (_pinController.text == _storedPin) {
+      Navigator.pushReplacementNamed(context, '/dashboard');
     } else {
-      if (entered == savedPin) {
-        _goToDashboard();
-      } else {
-        _showMsg('Incorrect PIN');
-      }
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Incorrect PIN')));
     }
   }
 
-  Future<void> _authenticateBiometric() async {
+  Future<void> _startReset() async {
+    setState(() => _resetMode = true);
+  }
+
+  Future<void> _submitResetRequest() async {
+    final email = _resetEmailController.text.trim();
+    if (email.isEmpty) return;
+
+    setState(() => _loading = true);
+
     try {
-      final canCheck = await _localAuth.canCheckBiometrics;
-      if (!canCheck) {
-        _showMsg('Biometric not available');
-        return;
-      }
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      _showMsg('Email sent. Please check and reset your Firebase password.');
 
-      final success = await _localAuth.authenticate(
-        localizedReason: 'Use fingerprint to unlock',
-        options: const AuthenticationOptions(biometricOnly: true),
-      );
-
-      if (success) _goToDashboard();
-    } catch (e) {
-      _showMsg('Biometric error: $e');
-    }
-  }
-
-  Future<void> _resetPin() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Reset PIN'),
-        content: const Text('Authenticate with fingerprint to reset your PIN.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Continue')),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      final didAuth = await _localAuth.authenticate(
-        localizedReason: 'Fingerprint required to reset PIN',
-        options: const AuthenticationOptions(biometricOnly: true),
-      );
-
-      if (didAuth) {
-        final newPin = await _askNewPin();
-        if (newPin != null && newPin.length == 4) {
-          await _storage.write(key: 'user_pin', value: newPin);
-          _showMsg('PIN reset successful!');
-        }
-      }
-    }
-  }
-
-  Future<String?> _askNewPin() async {
-    final controller = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Enter New PIN'),
-        content: TextField(
-          controller: controller,
-          maxLength: 4,
-          keyboardType: TextInputType.number,
-          obscureText: true,
-          decoration: const InputDecoration(hintText: 'New 4-digit PIN'),
+      // After confirming email, allow setting new PIN
+      await showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Set New PIN'),
+          content: TextField(
+            controller: _newPinController,
+            decoration: const InputDecoration(labelText: 'New PIN'),
+            keyboardType: TextInputType.number,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                final user = FirebaseAuth.instance.currentUser;
+                if (user != null && _newPinController.text.length >= 4) {
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(user.uid)
+                      .update({'pin': _newPinController.text});
+                  _showMsg('PIN updated successfully');
+                  Navigator.pop(context);
+                  setState(() => _resetMode = false);
+                }
+              },
+              child: const Text('Save PIN'),
+            )
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, controller.text), child: const Text('Save')),
-        ],
-      ),
-    );
-  }
+      );
+    } catch (e) {
+      _showMsg('Error: ${e.toString()}');
+    }
 
-  void _goToDashboard() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const DashboardScreen()),
-    );
+    setState(() => _loading = false);
   }
 
   void _showMsg(String msg) {
@@ -135,58 +99,61 @@ class _LockScreenState extends State<LockScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.green.shade50,
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 30),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.lock, size: 80, color: Colors.green),
-              const SizedBox(height: 20),
-              Text(
-                _hasPin ? 'Enter your PIN to unlock' : 'Create a 4-digit PIN',
-                style: const TextStyle(fontSize: 18),
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _pinController,
-                maxLength: 4,
-                keyboardType: TextInputType.number,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  hintText: 'Enter PIN',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: _submitPin,
-                icon: const Icon(Icons.lock_open),
-                label: const Text('Unlock'),
-              ),
-              const SizedBox(height: 10),
-
-              if (_hasPin)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      tooltip: 'Fingerprint unlock',
-                      icon: const Icon(Icons.fingerprint, size: 36),
-                      onPressed: _authenticateBiometric,
-                    ),
-                    IconButton(
-                      tooltip: 'Reset PIN',
-                      icon: const Icon(Icons.refresh, size: 32),
-                      onPressed: _resetPin,
-                    ),
-                  ],
-                ),
-            ],
-          ),
+      appBar: AppBar(title: const Text('🔒 Locked'), backgroundColor: Colors.green),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: _resetMode ? _buildResetForm() : _buildPinForm(),
         ),
       ),
+    );
+  }
+
+  Widget _buildPinForm() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.lock, size: 60),
+        const SizedBox(height: 20),
+        TextField(
+          controller: _pinController,
+          decoration: const InputDecoration(labelText: 'Enter PIN'),
+          keyboardType: TextInputType.number,
+          obscureText: true,
+        ),
+        const SizedBox(height: 20),
+        ElevatedButton(
+          onPressed: _verifyPin,
+          child: const Text('Unlock'),
+        ),
+        TextButton(
+          onPressed: _startReset,
+          child: const Text('Forgot PIN?'),
+        )
+      ],
+    );
+  }
+
+  Widget _buildResetForm() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.email, size: 60),
+        const SizedBox(height: 20),
+        TextField(
+          controller: _resetEmailController,
+          decoration: const InputDecoration(labelText: 'Enter your email'),
+        ),
+        const SizedBox(height: 20),
+        ElevatedButton(
+          onPressed: _loading ? null : _submitResetRequest,
+          child: _loading ? const CircularProgressIndicator() : const Text('Send Reset Link'),
+        ),
+        TextButton(
+          onPressed: () => setState(() => _resetMode = false),
+          child: const Text('Back to PIN'),
+        ),
+      ],
     );
   }
 }

@@ -1,5 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminAnalyticsScreen extends StatefulWidget {
   const AdminAnalyticsScreen({super.key});
@@ -10,13 +10,9 @@ class AdminAnalyticsScreen extends StatefulWidget {
 
 class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
   int totalUsers = 0;
-  double totalBalance = 0;
   int totalTransactions = 0;
-  Map<String, int> typeBreakdown = {};
-
-  int totalReferrals = 0;
-  double totalReferralEarnings = 0;
-
+  double totalReferralPayouts = 0;
+  Map<String, int> referralCounts = {};
   bool loading = true;
 
   @override
@@ -26,115 +22,73 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
   }
 
   Future<void> _loadAnalytics() async {
-    setState(() => loading = true);
+    final usersSnap = await FirebaseFirestore.instance.collection('users').get();
+    final allUsers = usersSnap.docs;
+    totalUsers = allUsers.length;
 
-    try {
-      final usersSnapshot = await FirebaseFirestore.instance.collection('users').get();
-      totalUsers = usersSnapshot.docs.length;
-
-      // Sum all balances
-      totalBalance = 0;
-      totalReferrals = 0;
-      for (var doc in usersSnapshot.docs) {
-        final balance = doc.data()['balance'] ?? 0;
-        totalBalance += balance.toDouble();
-
-        if (doc.data().containsKey('referralUsed')) {
-          totalReferrals++;
-        }
-      }
-
-      // Fetch all referral transactions and sum amount
-      totalReferralEarnings = 0;
-      final txs = await FirebaseFirestore.instance
-          .collectionGroup('transactions')
-          .where('type', isEqualTo: 'referral')
-          .get();
-
-      for (var tx in txs.docs) {
-        final amount = tx.data()['amount'] ?? 0;
-        totalReferralEarnings += amount.toDouble();
-      }
-
-      // Transaction counts by type
-      final txSnapshots = await Future.wait(
-        usersSnapshot.docs.map((userDoc) async {
-          final txs = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(userDoc.id)
-              .collection('transactions')
-              .get();
-          return txs.docs;
-        }),
-      );
-
-      totalTransactions = 0;
-      typeBreakdown = {};
-      for (var userTxs in txSnapshots) {
-        totalTransactions += userTxs.length;
-        for (var tx in userTxs) {
-          final type = tx['type'] ?? 'other';
-          typeBreakdown[type] = (typeBreakdown[type] ?? 0) + 1;
-        }
-      }
-    } catch (e) {
-      debugPrint('Error loading analytics: $e');
+    // Count referred users
+    final referred = allUsers.where((doc) => doc.data()['referralUsed'] != null);
+    for (var doc in referred) {
+      final refBy = doc['referralUsed'];
+      referralCounts[refBy] = (referralCounts[refBy] ?? 0) + 1;
     }
 
-    setState(() => loading = false);
+    int txCount = 0;
+    double referralTotal = 0;
+
+    for (var userDoc in allUsers) {
+      final txs = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userDoc.id)
+          .collection('transactions')
+          .get();
+
+      txCount += txs.size;
+      for (var tx in txs.docs) {
+        if (tx.data()['type'] == 'referral') {
+          referralTotal += (tx.data()['amount'] ?? 0).toDouble();
+        }
+      }
+    }
+
+    setState(() {
+      totalTransactions = txCount;
+      totalReferralPayouts = referralTotal;
+      loading = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    if (loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+
+    final topReferrers = referralCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin Analytics'),
+        title: const Text('📊 Admin Analytics'),
         backgroundColor: Colors.green,
       ),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadAnalytics,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  const Text(
-                    '📊 Overview',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 10),
-                  _buildStatTile('👥 Total Users', '$totalUsers'),
-                  _buildStatTile('💰 Total Balance in System', '₦${totalBalance.toStringAsFixed(2)}'),
-                  _buildStatTile('🧾 Total Transactions', '$totalTransactions'),
-                  const Divider(),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _buildStatTile('👤 Total Users', totalUsers.toString()),
+          _buildStatTile('💸 Total Transactions', totalTransactions.toString()),
+          _buildStatTile('💰 Referral Payouts', '₦${totalReferralPayouts.toStringAsFixed(2)}'),
+          _buildStatTile(
+            '👥 Referred Users',
+            referralCounts.values.fold<int>(0, (a, b) => a + b).toString(),
+          ),
+          const SizedBox(height: 24),
+          const Text('🥇 Top Referrers', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
 
-                  const SizedBox(height: 10),
-                  const Text(
-                    '🎁 Referral Stats',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildStatTile('👥 Total Referred Users', '$totalReferrals'),
-                  _buildStatTile('💸 Total Referral Rewards Paid', '₦${totalReferralEarnings.toStringAsFixed(2)}'),
-
-                  const SizedBox(height: 20),
-                  const Divider(),
-
-                  const Text(
-                    '📂 Transactions by Type',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  ...typeBreakdown.entries.map((entry) {
-                    return ListTile(
-                      leading: const Icon(Icons.analytics),
-                      title: Text('${entry.key.toUpperCase()}'),
-                      trailing: Text('${entry.value}'),
-                    );
-                  }),
-                ],
-              ),
-            ),
+          ...topReferrers.map((entry) => ListTile(
+                title: Text('UID: ${entry.key}'),
+                subtitle: Text('${entry.value} users referred'),
+              )),
+        ],
+      ),
     );
   }
 
@@ -144,7 +98,7 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
         title: Text(title),
         trailing: Text(
           value,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
     );

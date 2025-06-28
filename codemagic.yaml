@@ -8,7 +8,7 @@ workflows:
         script: flutter pub get
       - name: Clean build
         script: flutter clean
-      - name: Build AAB (v2 embedding)
-        script: flutter build appbundle --release --obfuscate --split-debug-info=build/secure
+      - name: Build AAB
+        script: flutter build appbundle --release
     artifacts:
       - build/app/outputs/**/*.aab

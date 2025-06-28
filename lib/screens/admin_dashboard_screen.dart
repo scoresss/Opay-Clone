@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -9,16 +10,35 @@ class AdminDashboardScreen extends StatefulWidget {
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+  bool loading = true;
+  bool isAdmin = false;
+
   bool maintenanceGlobal = false;
   bool airtimeOff = false;
   bool electricityOff = false;
   bool transferOff = false;
-  bool loading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadMaintenanceSettings();
+    _checkUserRole();
+  }
+
+  Future<void> _checkUserRole() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final role = doc.data()?['role'] ?? 'user';
+
+    setState(() {
+      isAdmin = role == 'admin';
+      loading = false;
+    });
+
+    if (role == 'admin') {
+      _loadMaintenanceSettings();
+    }
   }
 
   Future<void> _loadMaintenanceSettings() async {
@@ -30,7 +50,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       airtimeOff = featureDoc.data()?['airtime'] ?? false;
       electricityOff = featureDoc.data()?['electricity'] ?? false;
       transferOff = featureDoc.data()?['transfer'] ?? false;
-      loading = false;
     });
   }
 
@@ -40,7 +59,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }, SetOptions(merge: true));
 
     setState(() => maintenanceGlobal = value);
-
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(value ? '🔴 App globally disabled' : '🟢 App enabled'),
     ));
@@ -64,7 +82,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (!isAdmin) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Access Denied')),
+        body: const Center(
+          child: Text(
+            '❌ You are not authorized to access this page.',
+            style: TextStyle(fontSize: 16),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Admin Dashboard'), backgroundColor: Colors.green),
@@ -133,10 +165,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 }
 
-// 🔄 Popup to Force Logout User
+// 🔄 Popup Dialog for Forcing Logout
 class ForceLogoutDialog extends StatefulWidget {
   const ForceLogoutDialog({super.key});
-
   @override
   State<ForceLogoutDialog> createState() => _ForceLogoutDialogState();
 }

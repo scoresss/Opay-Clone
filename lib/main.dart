@@ -34,7 +34,8 @@ class OpayApp extends StatelessWidget {
         useMaterial3: true,
       ),
       initialRoute: '/splash',
-      home: const LockScreen(),
+      home: const AppGatekeeper(),
+      
       routes: {
         '/splash': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),

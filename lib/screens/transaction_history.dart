@@ -79,35 +79,76 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                                   icon: const Icon(Icons.download),
                                   tooltip: 'Save Receipt',
                                   onPressed: () async {
-                                    final pdfData =
-                                        await ReceiptService.generateReceipt(
-                                      title: title,
-                                      amount: amount.toDouble(),
-                                      date: date,
-                                      type: type,
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Save Receipt'),
+                                        content: const Text('Do you want to save this receipt as PDF and PNG?'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(ctx, false),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () => Navigator.pop(ctx, true),
+                                            child: const Text('Save'),
+                                          ),
+                                        ],
+                                      ),
                                     );
 
-                                    await ReceiptService.saveReceiptToFile(pdfData);
-                                    await ReceiptService.saveReceiptAsImage(pdfData);
-                                    Fluttertoast.showToast(
-                                        msg: 'Saved to Download/OpayReceipts');
+                                    if (confirm == true) {
+                                      final pdfData =
+                                          await ReceiptService.generateReceipt(
+                                        title: title,
+                                        amount: amount.toDouble(),
+                                        date: date,
+                                        type: type,
+                                      );
+
+                                      await ReceiptService.saveReceiptToFile(pdfData);
+                                      await ReceiptService.saveReceiptAsImage(pdfData);
+
+                                      Fluttertoast.showToast(
+                                          msg: 'Saved to Download/OpayReceipts');
+                                    }
                                   },
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.share),
                                   tooltip: 'Share Receipt',
                                   onPressed: () async {
-                                    final now = DateFormat('yyyyMMdd_HHmmss')
-                                        .format(DateTime.now());
-                                    final filePath =
-                                        '/storage/emulated/0/Download/OpayReceipts/receipt_$now.png';
-                                    final file = File(filePath);
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Share Receipt'),
+                                        content: const Text('Do you want to share the saved receipt image?'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(ctx, false),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () => Navigator.pop(ctx, true),
+                                            child: const Text('Share'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
 
-                                    if (await file.exists()) {
-                                      await ReceiptService.shareReceiptImage(file);
-                                    } else {
-                                      Fluttertoast.showToast(
-                                          msg: 'Receipt not found. Save it first.');
+                                    if (confirm == true) {
+                                      final now = DateFormat('yyyyMMdd_HHmmss')
+                                          .format(DateTime.now());
+                                      final filePath =
+                                          '/storage/emulated/0/Download/OpayReceipts/receipt_$now.png';
+                                      final file = File(filePath);
+
+                                      if (await file.exists()) {
+                                        await ReceiptService.shareReceiptImage(file);
+                                      } else {
+                                        Fluttertoast.showToast(
+                                            msg: 'Receipt not found. Please save it first.');
+                                      }
                                     }
                                   },
                                 ),

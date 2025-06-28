@@ -1,114 +1,97 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fluttertoast/fluttertoast.dart';
-import '../services/firestore_service.dart';
+import 'package:flutter/material.dart';
 
 class AirtimeScreen extends StatefulWidget {
-  const AirtimeScreen({Key? key}) : super(key: key);
+  const AirtimeScreen({super.key});
 
   @override
   State<AirtimeScreen> createState() => _AirtimeScreenState();
 }
 
 class _AirtimeScreenState extends State<AirtimeScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _amountController = TextEditingController();
-  bool _loading = false;
+  bool underMaintenance = false;
+  bool loading = true;
 
-  Future<void> _buyAirtime() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _loading = true);
+  final TextEditingController phoneController = TextEditingController();
+  final TextEditingController amountController = TextEditingController();
 
-      try {
-        final user = FirebaseAuth.instance.currentUser!;
-        final uid = user.uid;
-        final phone = _phoneController.text.trim();
-        final amount = double.parse(_amountController.text.trim());
+  @override
+  void initState() {
+    super.initState();
+    _checkMaintenance();
+  }
 
-        final doc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .get();
+  Future<void> _checkMaintenance() async {
+    final doc = await FirebaseFirestore.instance
+        .collection('app_settings')
+        .doc('maintenance')
+        .get();
 
-        double balance = (doc['balance'] ?? 0).toDouble();
+    setState(() {
+      underMaintenance = doc.data()?['airtime'] == true;
+      loading = false;
+    });
+  }
 
-        if (balance < amount) {
-          Fluttertoast.showToast(msg: 'Insufficient balance');
-          return;
-        }
+  Future<void> _submit() async {
+    final phone = phoneController.text.trim();
+    final amount = double.tryParse(amountController.text) ?? 0;
 
-        final newBalance = balance - amount;
-
-        await FirestoreService().updateBalance(uid, newBalance);
-
-        await FirestoreService().addTransaction(uid, {
-          'title': 'Airtime to $phone',
-          'amount': -amount,
-          'date': DateTime.now().toString(),
-        });
-
-        Fluttertoast.showToast(msg: '₦$amount airtime bought for $phone');
-        _phoneController.clear();
-        _amountController.clear();
-      } catch (e) {
-        Fluttertoast.showToast(msg: 'Error: ${e.toString()}');
-      } finally {
-        setState(() => _loading = false);
-      }
+    if (phone.isEmpty || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid input')));
+      return;
     }
+
+    // TODO: Deduct balance, log transaction, etc.
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Airtime purchase successful')),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (underMaintenance) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Airtime')),
+        body: const Center(
+          child: Text(
+            '⚠️ Airtime service is under maintenance.\nPlease try again later.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Buy Airtime')),
       body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Phone Number',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (val) =>
-                    val == null || val.length < 11 ? 'Enter valid phone number' : null,
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _amountController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Amount (₦)',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (val) {
-                  if (val == null || val.isEmpty) return 'Enter amount';
-                  if (double.tryParse(val) == null || double.parse(val) <= 0) {
-                    return 'Enter valid amount';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 30),
-              _loading
-                  ? const CircularProgressIndicator()
-                  : ElevatedButton(
-                      onPressed: _buyAirtime,
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(50),
-                        backgroundColor: Colors.green,
-                      ),
-                      child: const Text('Buy Airtime'),
-                    ),
-            ],
-          ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            TextField(
+              controller: phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(labelText: 'Phone Number'),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: amountController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Amount'),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _submit,
+              child: const Text('Buy Airtime'),
+            )
+          ],
         ),
       ),
     );

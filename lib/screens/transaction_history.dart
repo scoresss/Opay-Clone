@@ -44,26 +44,18 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                final allTx = snapshot.data!.docs
-                    .map((doc) => doc.data() as Map<String, dynamic>)
-                    .where((tx) {
-                      final title = tx['title']?.toString().toLowerCase() ?? '';
-                      final amount = tx['amount']?.toString() ?? '';
-                      final query = searchQuery.toLowerCase();
-                      return title.contains(query) || amount.contains(query);
-                    })
-                    .toList();
+                final allTx = snapshot.data!.docs;
 
                 if (allTx.isEmpty) {
                   return const Center(child: Text('No transactions found'));
                 }
 
-                // Group by date
-                final grouped = <String, List<Map<String, dynamic>>>{};
-                for (var tx in allTx) {
+                final grouped = <String, List<QueryDocumentSnapshot>>{};
+                for (var doc in allTx) {
+                  final tx = doc.data() as Map<String, dynamic>;
                   final rawDate = tx['date'] ?? '';
-                  final date = DateFormat('yyyy-MM-dd').format(DateTime.parse(rawDate));
-                  grouped[date] = (grouped[date] ?? [])..add(tx);
+                  final dateKey = DateFormat('yyyy-MM-dd').format(DateTime.parse(rawDate));
+                  grouped[dateKey] = (grouped[dateKey] ?? [])..add(doc);
                 }
 
                 final sortedDates = grouped.keys.toList()
@@ -74,22 +66,18 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                   itemCount: sortedDates.length,
                   itemBuilder: (context, index) {
                     final dateKey = sortedDates[index];
-                    final items = grouped[dateKey]!;
-                    final formattedHeader = DateFormat.yMMMMd().format(DateTime.parse(dateKey));
+                    final docs = grouped[dateKey]!;
+                    final header = DateFormat.yMMMMd().format(DateTime.parse(dateKey));
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          formattedHeader,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black54,
-                          ),
+                          header,
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black54),
                         ),
                         const SizedBox(height: 8),
-                        ...items.map((tx) => _buildTransactionTile(tx)).toList(),
+                        ...docs.map((doc) => _buildTransactionTile(doc)).toList(),
                         const SizedBox(height: 12),
                       ],
                     );
@@ -117,99 +105,125 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     );
   }
 
-  Widget _buildTransactionTile(Map<String, dynamic> tx) {
+  Widget _buildTransactionTile(QueryDocumentSnapshot doc) {
+    final tx = doc.data() as Map<String, dynamic>;
     final title = tx['title'] ?? 'Transaction';
     final amount = tx['amount'] ?? 0;
     final date = tx['date'] ?? '';
     final type = tx['type'] ?? 'transfer';
+    final status = tx['status'] ?? 'success';
 
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: ListTile(
-        title: Text(title),
-        subtitle: Text(type[0].toUpperCase() + type.substring(1)),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              '₦${amount.toString()}',
-              style: TextStyle(
-                color: amount >= 0 ? Colors.green : Colors.red,
-                fontWeight: FontWeight.bold,
+    if (!title.toLowerCase().contains(searchQuery.toLowerCase()) &&
+        !amount.toString().contains(searchQuery)) {
+      return const SizedBox.shrink();
+    }
+
+    return GestureDetector(
+      onLongPress: () async {
+        if (status == 'success') {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('transactions')
+              .doc(doc.id)
+              .update({'status': 'failed'});
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Marked as failed'),
+              action: SnackBarAction(
+                label: 'Undo',
+                onPressed: () async {
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(uid)
+                      .collection('transactions')
+                      .doc(doc.id)
+                      .update({'status': 'success'});
+                  Fluttertoast.showToast(msg: 'Reverted to success');
+                },
               ),
             ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 📥 Save
-                IconButton(
-                  icon: const Icon(Icons.download),
-                  tooltip: 'Save Receipt',
-                  onPressed: () async {
-                    final confirm = await _showConfirmDialog(
-                      'Save Receipt', 'Save this receipt as PDF and PNG?',
-                    );
-                    if (confirm == true) {
-                      final pdfData = await ReceiptService.generateReceipt(
-                        title: title,
-                        amount: amount.toDouble(),
-                        date: date,
-                        type: type,
-                      );
-                      await ReceiptService.saveReceiptToFile(pdfData);
-                      await ReceiptService.saveReceiptAsImage(pdfData);
-                      Fluttertoast.showToast(
-                          msg: 'Saved to Download/OpayReceipts');
-                    }
-                  },
+          );
+        }
+      },
+      child: Card(
+        color: status == 'failed' ? Colors.red.shade100 : null,
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        child: ListTile(
+          title: Text(title),
+          subtitle: Text('$type • Status: ${status.toUpperCase()}'),
+          trailing: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '₦$amount',
+                style: TextStyle(
+                  color: amount >= 0 ? Colors.green : Colors.red,
+                  fontWeight: FontWeight.bold,
                 ),
-
-                // 👁 View
-                IconButton(
-                  icon: const Icon(Icons.visibility),
-                  tooltip: 'View Receipt',
-                  onPressed: () async {
-                    final now = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-                    final path = '/storage/emulated/0/Download/OpayReceipts/receipt_$now.png';
-                    final file = File(path);
-
-                    if (await file.exists()) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ReceiptViewScreen(imagePath: path),
-                        ),
-                      );
-                    } else {
-                      Fluttertoast.showToast(msg: 'Receipt not found. Save it first.');
-                    }
-                  },
-                ),
-
-                // 📤 Share
-                IconButton(
-                  icon: const Icon(Icons.share),
-                  tooltip: 'Share Receipt',
-                  onPressed: () async {
-                    final confirm = await _showConfirmDialog(
-                      'Share Receipt', 'Share saved receipt image?',
-                    );
-                    if (confirm == true) {
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.download),
+                    tooltip: 'Save Receipt',
+                    onPressed: () async {
+                      final confirm = await _showConfirmDialog('Save Receipt', 'Save this receipt as PDF and PNG?');
+                      if (confirm == true) {
+                        final pdf = await ReceiptService.generateReceipt(
+                          title: title,
+                          amount: amount.toDouble(),
+                          date: date,
+                          type: type,
+                        );
+                        await ReceiptService.saveReceiptToFile(pdf);
+                        await ReceiptService.saveReceiptAsImage(pdf);
+                        Fluttertoast.showToast(msg: 'Saved to Download/OpayReceipts');
+                      }
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.visibility),
+                    tooltip: 'View Receipt',
+                    onPressed: () async {
                       final now = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-                      final filePath = '/storage/emulated/0/Download/OpayReceipts/receipt_$now.png';
-                      final file = File(filePath);
-
+                      final path = '/storage/emulated/0/Download/OpayReceipts/receipt_$now.png';
+                      final file = File(path);
                       if (await file.exists()) {
-                        await ReceiptService.shareReceiptImage(file);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ReceiptViewScreen(imagePath: path),
+                          ),
+                        );
                       } else {
                         Fluttertoast.showToast(msg: 'Receipt not found. Save it first.');
                       }
-                    }
-                  },
-                ),
-              ],
-            ),
-          ],
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.share),
+                    tooltip: 'Share Receipt',
+                    onPressed: () async {
+                      final confirm = await _showConfirmDialog('Share Receipt', 'Share saved receipt image?');
+                      if (confirm == true) {
+                        final now = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+                        final filePath = '/storage/emulated/0/Download/OpayReceipts/receipt_$now.png';
+                        final file = File(filePath);
+                        if (await file.exists()) {
+                          await ReceiptService.shareReceiptImage(file);
+                        } else {
+                          Fluttertoast.showToast(msg: 'Receipt not found. Save it first.');
+                        }
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

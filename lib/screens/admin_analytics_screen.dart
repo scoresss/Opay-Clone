@@ -14,6 +14,9 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
   int totalTransactions = 0;
   Map<String, int> typeBreakdown = {};
 
+  int totalReferrals = 0;
+  double totalReferralEarnings = 0;
+
   bool loading = true;
 
   @override
@@ -26,18 +29,34 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
     setState(() => loading = true);
 
     try {
-      // Count all users
       final usersSnapshot = await FirebaseFirestore.instance.collection('users').get();
       totalUsers = usersSnapshot.docs.length;
 
       // Sum all balances
       totalBalance = 0;
+      totalReferrals = 0;
       for (var doc in usersSnapshot.docs) {
         final balance = doc.data()['balance'] ?? 0;
         totalBalance += balance.toDouble();
+
+        if (doc.data().containsKey('referralUsed')) {
+          totalReferrals++;
+        }
       }
 
-      // Count transactions
+      // Fetch all referral transactions and sum amount
+      totalReferralEarnings = 0;
+      final txs = await FirebaseFirestore.instance
+          .collectionGroup('transactions')
+          .where('type', isEqualTo: 'referral')
+          .get();
+
+      for (var tx in txs.docs) {
+        final amount = tx.data()['amount'] ?? 0;
+        totalReferralEarnings += amount.toDouble();
+      }
+
+      // Transaction counts by type
       final txSnapshots = await Future.wait(
         usersSnapshot.docs.map((userDoc) async {
           final txs = await FirebaseFirestore.instance
@@ -79,12 +98,30 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  _buildStatTile('👥 Total Users', '$totalUsers'),
-                  _buildStatTile('💰 Total Balance', '₦${totalBalance.toStringAsFixed(2)}'),
-                  _buildStatTile('🧾 Total Transactions', '$totalTransactions'),
-                  const SizedBox(height: 20),
                   const Text(
-                    '📊 Transactions by Type',
+                    '📊 Overview',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildStatTile('👥 Total Users', '$totalUsers'),
+                  _buildStatTile('💰 Total Balance in System', '₦${totalBalance.toStringAsFixed(2)}'),
+                  _buildStatTile('🧾 Total Transactions', '$totalTransactions'),
+                  const Divider(),
+
+                  const SizedBox(height: 10),
+                  const Text(
+                    '🎁 Referral Stats',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildStatTile('👥 Total Referred Users', '$totalReferrals'),
+                  _buildStatTile('💸 Total Referral Rewards Paid', '₦${totalReferralEarnings.toStringAsFixed(2)}'),
+
+                  const SizedBox(height: 20),
+                  const Divider(),
+
+                  const Text(
+                    '📂 Transactions by Type',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),

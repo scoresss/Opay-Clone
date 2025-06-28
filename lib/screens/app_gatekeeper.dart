@@ -1,7 +1,6 @@
-// lib/screens/app_gatekeeper.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:opay_clone/screens/app_maintenance_screen.dart';
+import 'package:opay_clone/screens/maintenance_screen.dart';
 import 'package:opay_clone/screens/lock_screen.dart';
 
 class AppGatekeeper extends StatelessWidget {

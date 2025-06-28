@@ -20,42 +20,92 @@ class _AdminScreenState extends State<AdminScreen> {
         title: const Text('Admin Panel'),
         backgroundColor: Colors.green,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const SizedBox(height: 10),
-            _buildMaintenanceToggle(),
-            const Divider(),
-            const SizedBox(height: 20),
-            const Text('Top Up User Balance', style: TextStyle(fontSize: 18)),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _userIdController,
-              decoration: const InputDecoration(
-                labelText: 'User UID',
-                border: OutlineInputBorder(),
-              ),
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('app_settings')
+            .doc('global')
+            .snapshots(),
+        builder: (context, snapshot) {
+          final isDown = snapshot.data?.get('maintenance') ?? false;
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                if (isDown)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade100,
+                      border: Border.all(color: Colors.red),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      '⚠ The app is currently in Maintenance Mode!',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                _buildMaintenanceToggle(isDown),
+                const Divider(),
+                const SizedBox(height: 20),
+                const Text('Top Up User Balance', style: TextStyle(fontSize: 18)),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _userIdController,
+                  decoration: const InputDecoration(
+                    labelText: 'User UID',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _amountController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Amount',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: _loading ? null : _topUpBalance,
+                  child: _loading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text('Add Balance'),
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _amountController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Amount',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _loading ? null : _topUpBalance,
-              child: _loading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Add Balance'),
-            ),
-          ],
-        ),
+          );
+        },
       ),
+    );
+  }
+
+  Widget _buildMaintenanceToggle(bool currentStatus) {
+    return SwitchListTile(
+      title: const Text('🛠 App Maintenance Mode'),
+      subtitle: const Text('Disable app for all users remotely'),
+      value: currentStatus,
+      onChanged: (value) async {
+        await FirebaseFirestore.instance
+            .collection('app_settings')
+            .doc('global')
+            .set({'maintenance': value}, SetOptions(merge: true));
+
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+            value
+                ? 'App is now in maintenance mode!'
+                : 'App is now active for all users!',
+          ),
+        ));
+      },
     );
   }
 
@@ -102,42 +152,6 @@ class _AdminScreenState extends State<AdminScreen> {
     }
 
     setState(() => _loading = false);
-  }
-
-  Widget _buildMaintenanceToggle() {
-    return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance
-          .collection('app_settings')
-          .doc('global')
-          .get(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const CircularProgressIndicator();
-
-        final current = snapshot.data!.data() != null
-            ? snapshot.data!.get('maintenance') ?? false
-            : false;
-
-        return SwitchListTile(
-          title: const Text('🛠 App Maintenance Mode'),
-          subtitle: const Text('Disable app for all users remotely'),
-          value: current,
-          onChanged: (value) async {
-            await FirebaseFirestore.instance
-                .collection('app_settings')
-                .doc('global')
-                .set({'maintenance': value}, SetOptions(merge: true));
-
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(
-                value
-                    ? 'App is now in maintenance mode!'
-                    : 'App is now active for all users!',
-              ),
-            ));
-          },
-        );
-      },
-    );
   }
 
   void _showMsg(String msg) {

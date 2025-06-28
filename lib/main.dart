@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:opay/screens/splash_screen.dart';
 import 'package:opay/screens/login_screen.dart';
 import 'package:opay/screens/register_screen.dart';
@@ -17,7 +19,6 @@ void main() async {
 
 class OpayApp extends StatefulWidget {
   const OpayApp({super.key});
-
   @override
   State<OpayApp> createState() => _OpayAppState();
 }
@@ -29,6 +30,7 @@ class _OpayAppState extends State<OpayApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _watchForceLogout(); // 👈 Listen for remote logout
   }
 
   @override
@@ -41,6 +43,27 @@ class _OpayAppState extends State<OpayApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
       _isLocked = true;
+    }
+  }
+
+  void _watchForceLogout() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots()
+          .listen((doc) async {
+        if (doc.exists && doc.data()?['forceLogout'] == true) {
+          // Reset forceLogout and sign out
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).update({'forceLogout': false});
+          await FirebaseAuth.instance.signOut();
+
+          if (mounted) {
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+          }
+        }
+      });
     }
   }
 

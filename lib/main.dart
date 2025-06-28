@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:opay_clone/screens/app_gatekeeper.dart';
 import 'package:opay_clone/screens/splash_screen.dart';
 import 'package:opay_clone/screens/login_screen.dart';
 import 'package:opay_clone/screens/register_screen.dart';
@@ -11,7 +12,7 @@ import 'package:opay_clone/screens/electricity_screen.dart';
 import 'package:opay_clone/screens/profile_screen.dart';
 import 'package:opay_clone/screens/transaction_history_screen.dart';
 import 'package:opay_clone/screens/support_chat_screen.dart';
-import 'package:opay_clone/screens/lock_screen.dart';
+import 'package:opay_clone/screens/topup_screen.dart';
 import 'package:opay_clone/services/notification_service.dart';
 
 void main() async {
@@ -33,9 +34,8 @@ class OpayApp extends StatelessWidget {
         primarySwatch: Colors.green,
         useMaterial3: true,
       ),
-      initialRoute: '/splash',
-      home: const AppGatekeeper(),
       
+      home: const AppGatekeeper(),
       routes: {
         '/splash': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),
@@ -48,6 +48,7 @@ class OpayApp extends StatelessWidget {
         '/profile': (context) => const ProfileScreen(),
         '/history': (context) => const TransactionHistoryScreen(),
         '/support': (context) => const SupportChatScreen(),
+        '/topup': (context) => const TopUpScreen(), // ✅ Added
       },
     );
   }

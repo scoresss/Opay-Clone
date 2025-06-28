@@ -1,60 +1,122 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../utils/constants.dart';
 
-class TransactionHistoryScreen extends StatelessWidget {
-  const TransactionHistoryScreen({super.key});
+class TransactionHistoryScreen extends StatefulWidget {
+  const TransactionHistoryScreen({Key? key}) : super(key: key);
 
-  final List<Map<String, dynamic>> mockTransactions = const [
-    {
-      'title': 'Airtime Purchase',
-      'amount': '-₦500',
-      'date': 'June 22, 2025',
-    },
-    {
-      'title': 'Money Received',
-      'amount': '+₦2,000',
-      'date': 'June 21, 2025',
-    },
-    {
-      'title': 'Electricity Bill',
-      'amount': '-₦3,000',
-      'date': 'June 19, 2025',
-    },
-    {
-      'title': 'Money Sent',
-      'amount': '-₦1,500',
-      'date': 'June 17, 2025',
-    },
-  ];
+  @override
+  State<TransactionHistoryScreen> createState() =>
+      _TransactionHistoryScreenState();
+}
+
+class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
+  String selectedType = 'all';
+  final uid = FirebaseAuth.instance.currentUser?.uid;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Transaction History')),
-      body: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: mockTransactions.length,
-        separatorBuilder: (context, index) => const Divider(height: 16),
-        itemBuilder: (context, index) {
-          final transaction = mockTransactions[index];
-          final isCredit = transaction['amount'].toString().startsWith('+');
+    if (uid == null) {
+      return const Scaffold(body: Center(child: Text('Not logged in')));
+    }
 
-          return ListTile(
-            leading: Icon(
-              isCredit ? Icons.arrow_downward : Icons.arrow_upward,
-              color: isCredit ? Colors.green : Colors.red,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Transaction History'),
+        backgroundColor: AppColors.primary,
+      ),
+      body: Column(
+        children: [
+          _buildFilterBar(),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _getFilteredTransactions(uid!),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final transactions = snapshot.data!.docs;
+
+                if (transactions.isEmpty) {
+                  return const Center(child: Text('No transactions found'));
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: transactions.length,
+                  itemBuilder: (context, index) {
+                    final tx = transactions[index].data() as Map<String, dynamic>;
+                    final title = tx['title'] ?? 'Transaction';
+                    final amount = tx['amount'] ?? 0;
+                    final date = tx['date'] ?? '';
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      child: ListTile(
+                        title: Text(title),
+                        subtitle: Text(date),
+                        trailing: Text(
+                          '₦${amount.toString()}',
+                          style: TextStyle(
+                            color: amount >= 0 ? Colors.green : Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
             ),
-            title: Text(transaction['title']),
-            subtitle: Text(transaction['date']),
-            trailing: Text(
-              transaction['amount'],
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: isCredit ? Colors.green : Colors.red,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Filter buttons at the top
+  Widget _buildFilterBar() {
+    final filters = ['all', 'transfer', 'airtime', 'electricity'];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: filters.map((type) {
+          final isSelected = selectedType == type;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(type[0].toUpperCase() + type.substring(1)),
+              selected: isSelected,
+              onSelected: (_) {
+                setState(() => selectedType = type);
+              },
+              selectedColor: AppColors.primary,
+              backgroundColor: Colors.grey.shade300,
+              labelStyle: TextStyle(
+                color: isSelected ? Colors.white : Colors.black,
               ),
             ),
           );
-        },
+        }).toList(),
       ),
     );
+  }
+
+  /// Firestore query based on selected filter
+  Stream<QuerySnapshot> _getFilteredTransactions(String uid) {
+    final base = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('transactions')
+        .orderBy('date', descending: true);
+
+    if (selectedType == 'all') {
+      return base.snapshots();
+    } else {
+      return base.where('type', isEqualTo: selectedType).snapshots();
+    }
   }
 }

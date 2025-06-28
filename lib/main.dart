@@ -3,13 +3,14 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'package:opay/screens/splash_screen.dart';
-import 'package:opay/screens/login_screen.dart';
-import 'package:opay/screens/register_screen.dart';
-import 'package:opay/screens/lock_screen.dart';
-import 'package:opay/screens/dashboard_screen.dart';
-import 'package:opay/screens/admin_dashboard_screen.dart';
-import 'package:opay/services/role_service.dart';
+import 'screens/splash_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/register_screen.dart';
+import 'screens/lock_screen.dart';
+import 'screens/dashboard_screen.dart';
+import 'screens/admin_dashboard_screen.dart';
+import 'screens/top_up_screen.dart';
+import 'services/role_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +20,7 @@ void main() async {
 
 class OpayApp extends StatefulWidget {
   const OpayApp({super.key});
+
   @override
   State<OpayApp> createState() => _OpayAppState();
 }
@@ -55,10 +57,8 @@ class _OpayAppState extends State<OpayApp> with WidgetsBindingObserver {
           .snapshots()
           .listen((doc) async {
         if (doc.exists && doc.data()?['forceLogout'] == true) {
-          // Reset forceLogout and sign out
           await FirebaseFirestore.instance.collection('users').doc(user.uid).update({'forceLogout': false});
           await FirebaseAuth.instance.signOut();
-
           if (mounted) {
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
           }
@@ -98,6 +98,7 @@ class _OpayAppState extends State<OpayApp> with WidgetsBindingObserver {
         '/dashboard': (_) => const DashboardScreen(),
         '/lock': (_) => const LockScreen(),
         '/admin_dashboard': (_) => const AdminDashboardScreen(),
+        '/topup': (_) => const TopUpScreen(), // ✅ New: Top-up route
       },
     );
   }

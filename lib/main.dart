@@ -52,3 +52,4 @@ routes: {
   }
 }
 '/support': (context) => const SupportChatScreen(),
+home: const LockScreen(),

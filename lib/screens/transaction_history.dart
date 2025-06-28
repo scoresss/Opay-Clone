@@ -1,9 +1,12 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import '../utils/constants.dart';
-import 'package:printing/printing.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:intl/intl.dart';
 import '../services/receipt_service.dart';
+import '../utils/constants.dart';
+
 class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({Key? key}) : super(key: key);
 
@@ -52,47 +55,115 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                     final title = tx['title'] ?? 'Transaction';
                     final amount = tx['amount'] ?? 0;
                     final date = tx['date'] ?? '';
+                    final type = tx['type'] ?? 'transfer';
 
                     return Card(
-  margin: const EdgeInsets.symmetric(vertical: 6),
-  child: ListTile(
-    title: Text(title),
-    subtitle: Text(date),
-    trailing: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          '₦${amount.toString()}',
-          style: TextStyle(
-            color: amount >= 0 ? Colors.green : Colors.red,
-            fontWeight: FontWeight.bold,
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      child: ListTile(
+                        title: Text(title),
+                        subtitle: Text(date),
+                        trailing: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '₦${amount.toString()}',
+                              style: TextStyle(
+                                color: amount >= 0 ? Colors.green : Colors.red,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.download),
+                                  tooltip: 'Save Receipt',
+                                  onPressed: () async {
+                                    final pdfData =
+                                        await ReceiptService.generateReceipt(
+                                      title: title,
+                                      amount: amount.toDouble(),
+                                      date: date,
+                                      type: type,
+                                    );
+
+                                    await ReceiptService.saveReceiptToFile(pdfData);
+                                    await ReceiptService.saveReceiptAsImage(pdfData);
+                                    Fluttertoast.showToast(
+                                        msg: 'Saved to Download/OpayReceipts');
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.share),
+                                  tooltip: 'Share Receipt',
+                                  onPressed: () async {
+                                    final now = DateFormat('yyyyMMdd_HHmmss')
+                                        .format(DateTime.now());
+                                    final filePath =
+                                        '/storage/emulated/0/Download/OpayReceipts/receipt_$now.png';
+                                    final file = File(filePath);
+
+                                    if (await file.exists()) {
+                                      await ReceiptService.shareReceiptImage(file);
+                                    } else {
+                                      Fluttertoast.showToast(
+                                          msg: 'Receipt not found. Save it first.');
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
-        ),
-        IconButton(
-          icon: const Icon(Icons.download),
-          tooltip: 'Download Receipt',
-          onPressed: () async {
-            final pdfData = await ReceiptService.generateReceipt(
-              title: title,
-              amount: amount.toDouble(),
-              date: date,
-              type: tx['type'] ?? 'transfer',
-            );
-            await Printing.layoutPdf(onLayout: (format) async => pdfData);
-          },
-        ),
-      ],
-    ),
-  ),
-);
-final pdfData = await ReceiptService.generateReceipt(
-  title: tx['title'],
-  amount: tx['amount'],
-  date: tx['date'],
-  type: tx['type'],
-);
+        ],
+      ),
+    );
+  }
 
-await ReceiptService.saveReceiptToFile(pdfData);
-Fluttertoast.showToast(msg: 'Receipt saved to Downloads/OpayReceipts');
+  Widget _buildFilterBar() {
+    final filters = ['all', 'transfer', 'airtime', 'electricity'];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: filters.map((type) {
+          final isSelected = selectedType == type;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(type[0].toUpperCase() + type.substring(1)),
+              selected: isSelected,
+              onSelected: (_) => setState(() => selectedType = type),
+              selectedColor: AppColors.primary,
+              backgroundColor: Colors.grey.shade300,
+              labelStyle: TextStyle(
+                color: isSelected ? Colors.white : Colors.black,
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
 
-await Printing.layoutPdf(onLayout: (format) async => pdfData);
+  Stream<QuerySnapshot> _getFilteredTransactions(String uid) {
+    final base = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('transactions')
+        .orderBy('date', descending: true);
+
+    if (selectedType == 'all') {
+      return base.snapshots();
+    } else {
+      return base.where('type', isEqualTo: selectedType).snapshots();
+    }
+  }
+}

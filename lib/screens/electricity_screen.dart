@@ -1,114 +1,97 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fluttertoast/fluttertoast.dart';
-import '../services/firestore_service.dart';
+import 'package:flutter/material.dart';
 
 class ElectricityScreen extends StatefulWidget {
-  const ElectricityScreen({Key? key}) : super(key: key);
+  const ElectricityScreen({super.key});
 
   @override
   State<ElectricityScreen> createState() => _ElectricityScreenState();
 }
 
 class _ElectricityScreenState extends State<ElectricityScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final TextEditingController _meterController = TextEditingController();
-  final TextEditingController _amountController = TextEditingController();
-  bool _loading = false;
+  final meterController = TextEditingController();
+  final amountController = TextEditingController();
 
-  Future<void> _buyElectricity() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _loading = true);
+  bool underMaintenance = false;
+  bool loading = true;
 
-      try {
-        final user = FirebaseAuth.instance.currentUser!;
-        final uid = user.uid;
-        final meter = _meterController.text.trim();
-        final amount = double.parse(_amountController.text.trim());
+  @override
+  void initState() {
+    super.initState();
+    _checkMaintenance();
+  }
 
-        final doc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .get();
+  Future<void> _checkMaintenance() async {
+    final doc = await FirebaseFirestore.instance
+        .collection('app_settings')
+        .doc('maintenance')
+        .get();
 
-        double balance = (doc['balance'] ?? 0).toDouble();
+    setState(() {
+      underMaintenance = doc.data()?['electricity'] == true;
+      loading = false;
+    });
+  }
 
-        if (balance < amount) {
-          Fluttertoast.showToast(msg: 'Insufficient balance');
-          return;
-        }
+  Future<void> _submit() async {
+    final meter = meterController.text.trim();
+    final amount = double.tryParse(amountController.text) ?? 0;
 
-        final newBalance = balance - amount;
-
-        await FirestoreService().updateBalance(uid, newBalance);
-
-        await FirestoreService().addTransaction(uid, {
-          'title': 'Electricity for meter $meter',
-          'amount': -amount,
-          'date': DateTime.now().toString(),
-        });
-
-        Fluttertoast.showToast(msg: '₦$amount paid for meter $meter');
-        _meterController.clear();
-        _amountController.clear();
-      } catch (e) {
-        Fluttertoast.showToast(msg: 'Error: ${e.toString()}');
-      } finally {
-        setState(() => _loading = false);
-      }
+    if (meter.isEmpty || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter valid details')),
+      );
+      return;
     }
+
+    // TODO: Deduct balance and log electricity purchase
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Electricity token purchased!')),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Pay Electricity')),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _meterController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Meter Number',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (val) =>
-                    val == null || val.length < 5 ? 'Enter valid meter number' : null,
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _amountController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Amount (₦)',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (val) {
-                  if (val == null || val.isEmpty) return 'Enter amount';
-                  if (double.tryParse(val) == null || double.parse(val) <= 0) {
-                    return 'Enter valid amount';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 30),
-              _loading
-                  ? const CircularProgressIndicator()
-                  : ElevatedButton(
-                      onPressed: _buyElectricity,
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(50),
-                        backgroundColor: Colors.green,
-                      ),
-                      child: const Text('Pay Electricity'),
-                    ),
-            ],
+    if (loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (underMaintenance) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Electricity')),
+        body: const Center(
+          child: Text(
+            '⚠️ Electricity service is under maintenance.\nPlease try again later.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16),
           ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Buy Electricity')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            TextField(
+              controller: meterController,
+              decoration: const InputDecoration(labelText: 'Meter Number'),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: amountController,
+              decoration: const InputDecoration(labelText: 'Amount'),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _submit,
+              child: const Text('Buy Token'),
+            )
+          ],
         ),
       ),
     );

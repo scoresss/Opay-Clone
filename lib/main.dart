@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:opay/screens/splash_screen.dart';
-import 'package:opay/screens/lock_screen.dart';
-import 'package:opay/screens/login_screen.dart';
-import 'package:opay/screens/dashboard_screen.dart';
-import 'package:opay/screens/register_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:opay/screens/splash_screen.dart';
+import 'package:opay/screens/login_screen.dart';
+import 'package:opay/screens/register_screen.dart';
+import 'package:opay/screens/lock_screen.dart';
+import 'package:opay/screens/dashboard_screen.dart';
+import 'package:opay/screens/admin_dashboard_screen.dart';
+import 'package:opay/services/role_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +17,7 @@ void main() async {
 
 class OpayApp extends StatefulWidget {
   const OpayApp({super.key});
+
   @override
   State<OpayApp> createState() => _OpayAppState();
 }
@@ -50,13 +53,19 @@ class _OpayAppState extends State<OpayApp> with WidgetsBindingObserver {
       home: SplashScreen(
         onFinish: (context) async {
           final user = FirebaseAuth.instance.currentUser;
+
           if (user == null) {
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
           } else if (_isLocked) {
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LockScreen()));
             _isLocked = false;
           } else {
-            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
+            final isAdmin = await RoleService.isAdmin();
+            if (isAdmin) {
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen()));
+            } else {
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
+            }
           }
         },
       ),
@@ -65,6 +74,7 @@ class _OpayAppState extends State<OpayApp> with WidgetsBindingObserver {
         '/login': (_) => const LoginScreen(),
         '/dashboard': (_) => const DashboardScreen(),
         '/lock': (_) => const LockScreen(),
+        '/admin_dashboard': (_) => const AdminDashboardScreen(),
       },
     );
   }

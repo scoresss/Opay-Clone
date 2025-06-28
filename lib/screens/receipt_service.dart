@@ -26,6 +26,9 @@ static Future<void> saveReceiptToFile(Uint8List pdfData) async {
 
   print("✅ Saved PDF to $filePath");
 }
+await Printing.layoutPdf(onLayout: (format) async => pdfData);
+await ReceiptService.saveReceiptToFile(pdfData);
+Fluttertoast.showToast(msg: 'Receipt saved to Download/OpayReceipts');
 class ReceiptService {
   static Future<Uint8List> generateReceipt({
     required String title,

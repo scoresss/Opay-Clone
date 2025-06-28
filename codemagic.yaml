@@ -5,12 +5,10 @@ workflows:
       flutter: stable
     scripts:
       - name: Install dependencies
-        script: |
-          flutter pub get
-      - name: Clean build folder
+        script: flutter pub get
+      - name: Clean build
         script: flutter clean
-      - name: Build App Bundle
-        script: |
-          flutter build appbundle --release --obfuscate --split-debug-info=build/secure
+      - name: Build AAB (v2 embedding)
+        script: flutter build appbundle --release --obfuscate --split-debug-info=build/secure
     artifacts:
       - build/app/outputs/**/*.aab

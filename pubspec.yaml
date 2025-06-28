@@ -36,3 +36,6 @@ firebase_storage: ^11.5.6
 flutter:
   assets:
     - assets/default_user.png
+flutter:
+  assets:
+    - assets/logo.png

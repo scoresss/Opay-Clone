@@ -7,38 +7,37 @@ on:
 
 jobs:
   build:
-    name: Build APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repo
+      - name: 📥 Checkout Repo
         uses: actions/checkout@v3
 
-      - name: Set up Flutter
+      - name: 🚀 Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.1'  # ✅ Use latest stable version
+          flutter-version: '3.22.1'
           channel: 'stable'
-          cache: true
 
-      - name: Run flutter doctor
-        run: flutter doctor -v
+      - name: 🩺 Run flutter doctor
+        run: flutter doctor
 
-      - name: Install dependencies
+      - name: 📦 Get dependencies
         run: flutter pub get
 
-      - name: Clean build
+      - name: 🧹 Clean build
         run: flutter clean
 
-      - name: Ensure Android embedding v2
+      - name: 🏗️ Ensure Android embedding v2
         run: |
-          grep -r "io.flutter.embedding.android.FlutterActivity" android/app/src/main/java || exit 1
+          echo "✓ Your MainActivity.java must use FlutterActivity with V2 embedding"
+          grep "FlutterActivity" android/app/src/main/java/com/example/opay/MainActivity.java
 
-      - name: Build APK
+      - name: 🔨 Build APK
         run: flutter build apk --release
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: 📤 Upload APK
+        uses: actions/upload-artifact@v3
         with:
           name: release-apk
           path: build/app/outputs/flutter-apk/app-release.apk

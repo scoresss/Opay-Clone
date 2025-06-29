@@ -11,20 +11,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Set up Flutter 3.22.1
+      - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.22.1'
-          channel: 'stable'
-          cache: false  # ✅ This is key to avoid Dart 3.4.1
 
-      - name: Run flutter doctor
-        run: flutter doctor -v
-
-      - name: Get dependencies
+      - name: Install dependencies
         run: flutter pub get
 
       - name: Build APK

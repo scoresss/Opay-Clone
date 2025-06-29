@@ -17,7 +17,8 @@ jobs:
       - name: Install Flutter 3.22.1 (Dart 3.6.0)
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.1'   # ✅ Important!
+          flutter-version: '3.22.1'
+          channel: 'stable' # ✅ Forces Dart 3.6.0
 
       - name: Get dependencies
         run: flutter pub get

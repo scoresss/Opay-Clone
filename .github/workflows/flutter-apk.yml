@@ -7,10 +7,11 @@ on:
 
 jobs:
   build:
+    name: Build APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout Repo
+      - name: 🧾 Checkout Repo
         uses: actions/checkout@v3
 
       - name: 🚀 Set up Flutter
@@ -19,7 +20,7 @@ jobs:
           flutter-version: '3.22.1'
           channel: 'stable'
 
-      - name: 🩺 Run flutter doctor
+      - name: 🌿 Run flutter doctor
         run: flutter doctor
 
       - name: 📦 Get dependencies
@@ -30,14 +31,14 @@ jobs:
 
       - name: 🏗️ Ensure Android embedding v2
         run: |
-          echo "✓ Your MainActivity.java must use FlutterActivity with V2 embedding"
+          echo "✔ Checking MainActivity for FlutterActivity"
           grep "FlutterActivity" android/app/src/main/java/com/example/opay/MainActivity.java
 
-      - name: 🔨 Build APK
+      - name: 🏗️ Build APK
         run: flutter build apk --release
 
-      - name: 📤 Upload APK
-        uses: actions/upload-artifact@v3
+      - name: 🏁 Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: release-apk
           path: build/app/outputs/flutter-apk/app-release.apk

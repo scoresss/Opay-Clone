@@ -16,7 +16,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.13.9'  # ✅ Dart 3.2.5 (compatible with your dependencies)
+          flutter-version: '3.22.1'  # ✅ Dart 3.6.0 (Required by pdf_image_renderer)
 
       - name: Install dependencies
         run: flutter pub get

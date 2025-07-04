@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build:
@@ -11,8 +14,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🧾 Checkout Repo
-        uses: actions/checkout@v3
+      - name: 📥 Checkout Repo
+        uses: actions/checkout@v4
 
       - name: 🚀 Set up Flutter
         uses: subosito/flutter-action@v2
@@ -29,15 +32,10 @@ jobs:
       - name: 🧹 Clean build
         run: flutter clean
 
-      - name: 🏗️ Ensure Android embedding v2
-        run: |
-          echo "✔ Checking MainActivity for FlutterActivity"
-          grep "FlutterActivity" android/app/src/main/java/com/example/opay/MainActivity.java
-
-      - name: 🏗️ Build APK
+      - name: 🛠️ Build APK
         run: flutter build apk --release
 
-      - name: 🏁 Upload APK
+      - name: 🚢 Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: release-apk

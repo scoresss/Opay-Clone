@@ -1,1 +1,23 @@
-
+workflows:
+  build-android:
+    name: Build Android APK
+    max_build_duration: 15
+    environment:
+      flutter: 3.22.1
+      xcode: latest
+      vars:
+        PACKAGE_NAME: "com.example.opay"
+    scripts:
+      - name: Clean and get dependencies
+        script: |
+          flutter clean
+          flutter pub get
+      - name: Build APK
+        script: |
+          flutter build apk --release
+    artifacts:
+      - build/app/outputs/flutter-apk/app-release.apk
+    publishing:
+      email:
+        recipients:
+          - ariyathedon@gmail.com

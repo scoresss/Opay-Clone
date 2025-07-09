@@ -1,7 +1,6 @@
-package com.example.opay;
+package com.example.opay
 
-import io.flutter.embedding.android.FlutterActivity;
+import io.flutter.embedding.android.FlutterActivity
 
-public class MainActivity extends FlutterActivity 
-{
+class MainActivity: FlutterActivity() {
 }

@@ -1,0 +1,35 @@
+// Full code for android/settings.gradle
+pluginManagement {
+    def flutterSdkPath = System.getenv("FLUTTER_SDK_PATH")
+    if (flutterSdkPath == null) {
+        flutterSdkPath = System.getProperty("flutter.sdk")
+    }
+    assert flutterSdkPath != null, "FLUTTER_SDK_PATH not set; property flutter.sdk not set; " +
+            "you must set flutter.sdk in gradle.properties or flutter.sdk environment variable"
+
+    includeBuild("$flutterSdkPath/.gradle/daemon")
+    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+plugins {
+    id "dev.flutter.flutter-plugin-apply" version "1.0.0" apply false
+    id "com.android.application" version "8.4.0" apply false // Match your AGP version from project build.gradle
+    id "org.jetbrains.kotlin.android" version "1.9.0" apply false // Match your Kotlin version
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "android" // This is the root project name, typically 'android'
+include ':app' // THIS IS THE CRUCIAL LINE: It tells Gradle to include your 'app' module

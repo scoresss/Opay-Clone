@@ -1,10 +1,7 @@
-// Full code for android/build.gradle (Project-level)
+// Full code for android/build.gradle (Project-level - REMOVED allprojects block)
 buildscript {
     ext {
-        kotlin_version = '1.9.0' // Updated to a more recent Kotlin version
-        // You might need to adjust this AGP version based on your Flutter SDK.
-        // 8.1.1 is common with Flutter 3.10+, 8.2.0 for Flutter 3.16+, 8.4.0 for Flutter 3.22+
-        // Let's go with 8.4.0 as you're using Flutter 3.22.0 in CI
+        kotlin_version = '1.9.0'
         android_gradle_plugin_version = '8.4.0'
     }
     repositories {
@@ -14,18 +11,11 @@ buildscript {
     dependencies {
         classpath "com.android.tools.build:gradle:$android_gradle_plugin_version"
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        // Ensure you have google-services if you use Firebase (which you do)
-        classpath 'com.google.gms:google-services:4.4.1' // Check Firebase docs for latest
+        classpath 'com.google.gms:google-services:4.4.1'
     }
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        // If you use any specific third-party Maven repositories, add them here
-    }
-}
+// REMOVED THE ENTIRE ALLPROJECTS BLOCK HERE
 
 tasks.register("clean", Delete) {
     delete rootProject.buildDir

@@ -16,12 +16,7 @@ buildscript {
 }
 
 // Ensure the allprojects block is ABSENT. Repositories are defined in settings.gradle
-// allprojects {
-//     repositories {
-//         google()
-//         mavenCentral()
-//     }
-// }
+// If you see 'allprojects { ... }' block here, delete it entirely.
 
 tasks.register("clean", Delete) {
     delete rootProject.buildDir

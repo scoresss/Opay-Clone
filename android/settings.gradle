@@ -1,12 +1,12 @@
 // Full code for android/settings.gradle (Standard Flutter Setup)
 pluginManagement {
-    // Essential for Gradle to find Flutter's own plugins (like dev.flutter.flutter-gradle-plugin)
+    // These lines are crucial for Gradle to find Flutter's own Gradle plugins
     // by including Flutter's internal Gradle components as build sources.
     def flutterSdkPath = System.getenv("FLUTTER_SDK_PATH")
     if (flutterSdkPath == null) {
         flutterSdkPath = System.getProperty("flutter.sdk")
     }
-    // This assert helps ensure the SDK path is found during CI builds
+    // This assert helps with debugging if the path isn't found
     assert flutterSdkPath != null, "FLUTTER_SDK_PATH not set; property flutter.sdk not set; " +
             "you must set flutter.sdk in gradle.properties or flutter.sdk environment variable"
 
@@ -21,12 +21,12 @@ pluginManagement {
     }
 
     // Define the plugins used in your project and their versions.
-    // 'apply false' means these plugins are defined here but applied in individual modules (e.g., app/build.gradle).
+    // 'apply false' means these plugins are defined here but applied in individual modules.
     plugins {
         id "dev.flutter.flutter-plugin-apply" version "1.0.0" apply false // The core Flutter plugin
-        id "com.android.application" version "8.4.0" apply false // Android Gradle Plugin (matches previous updates)
-        id "org.jetbrains.kotlin.android" version "1.9.0" apply false // Kotlin Android Plugin (matches previous updates)
-        id "com.google.gms.google-services" version "4.4.1" apply false // Firebase Google Services plugin (matches previous updates)
+        id "com.android.application" version "8.4.0" apply false // Android Gradle Plugin
+        id "org.jetbrains.kotlin.android" version "1.9.0" apply false // Kotlin Android Plugin
+        id "com.google.gms.google-services" version "4.4.1" apply false // Firebase Google Services plugin
     }
 }
 

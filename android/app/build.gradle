@@ -2,14 +2,13 @@
 plugins {
     id "com.android.application"
     id "kotlin-android"
-    id "dev.flutter.flutter-gradle-plugin" // Use the new Flutter Gradle plugin ID
+    id "dev.flutter.flutter-gradle-plugin" // The new Flutter Gradle plugin ID
     id "com.google.gms.google-services" // For Firebase
 }
 
 android {
-    // IMPORTANT: Ensure compileSdk and targetSdk are high enough (Flutter 3+ needs at least 33, preferably 34)
-    compileSdk 34 // Updated to API 34
-    targetSdk 34 // Updated to API 34
+    compileSdk 34 // Latest recommended for Flutter 3+
+    targetSdk 34 // Latest recommended for Flutter 3+
 
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin' // Explicitly include Kotlin source
@@ -17,23 +16,20 @@ android {
 
     defaultConfig {
         applicationId "com.example.opay" // Your actual application ID
-        minSdkVersion 21 // Minimum Android version your app supports (common for many apps)
+        minSdkVersion 21 // Keep it at 21 for broad compatibility
         targetSdkVersion 34
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        multiDexEnabled true // Enable multidex for apps with many methods (common with Firebase)
+        multiDexEnabled true // Enable for apps with many methods (common with Firebase)
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for release builds here.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig debug.signingConfig
+            signingConfig debug.signingConfig // Use debug keys for CI for now
         }
     }
 
-    // Added for Flutter 3+ and newer AGP for better compatibility
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17 // Match Java 17 set in CI
         targetCompatibility JavaVersion.VERSION_17 // Match Java 17 set in CI
@@ -41,7 +37,7 @@ android {
     kotlinOptions {
         jvmTarget = '17' // Match Java 17
     }
-    namespace 'com.example.opay' // Add namespace based on your package (required for AGP 8.0+)
+    namespace 'com.example.opay' // Required for AGP 8.0+ based on your package
 }
 
 flutter {
@@ -49,10 +45,6 @@ flutter {
 }
 
 dependencies {
-    // Required for multidex if multiDexEnabled is true and minSdkVersion < 21
-    implementation 'androidx.multidex:multidex:2.0.1'
-
-    // Add any specific Android dependencies your project needs here
-    // e.g., if you have native Android code or plugins that recommend specific versions.
-    // For general Flutter apps, most plugin dependencies are handled automatically.
+    implementation 'androidx.multidex:multidex:2.0.1' // Required if minSdkVersion < 21 and multiDexEnabled
+    // Add any other specific Android dependencies your project needs here
 }

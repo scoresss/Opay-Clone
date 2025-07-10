@@ -1,8 +1,8 @@
-// Full code for android/build.gradle (Project-level - REMOVED allprojects block)
+// Full code for android/build.gradle (Project-level)
 buildscript {
     ext {
-        kotlin_version = '1.9.0'
-        android_gradle_plugin_version = '8.4.0'
+        kotlin_version = '1.9.0' // Matches version in settings.gradle
+        android_gradle_plugin_version = '8.4.0' // Matches version in settings.gradle
     }
     repositories {
         google()
@@ -11,11 +11,17 @@ buildscript {
     dependencies {
         classpath "com.android.tools.build:gradle:$android_gradle_plugin_version"
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath 'com.google.gms:google-services:4.4.1'
+        classpath 'com.google.gms:google-services:4.4.1' // Matches version in settings.gradle
     }
 }
 
-// REMOVED THE ENTIRE ALLPROJECTS BLOCK HERE
+// Ensure the allprojects block is ABSENT. Repositories are defined in settings.gradle
+// allprojects {
+//     repositories {
+//         google()
+//         mavenCentral()
+//     }
+// }
 
 tasks.register("clean", Delete) {
     delete rootProject.buildDir

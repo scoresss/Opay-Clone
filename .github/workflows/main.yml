@@ -1,46 +1,58 @@
 # Full code for .github/workflows/main.yml
-name: Flutter CI/CD # A descriptive name for your workflow
+name: Flutter CI/CD
 
 on:
   push:
     branches:
-      - main # This workflow runs when code is pushed to the 'main' branch
+      - main
   pull_request:
     branches:
-      - main # This workflow also runs for pull requests targeting 'main'
+      - main
 
 jobs:
   build_apk:
-    runs-on: ubuntu-latest # Specifies the operating system for the build environment
+    runs-on: ubuntu-latest # Standard runner
 
     steps:
-      - name: Checkout Repository # Step to get your code from GitHub
-        uses: actions/checkout@v4 # Use the latest stable version of the checkout action
+      - name: Checkout Repository
+        uses: actions/checkout@v4 # Ensure this is v4
 
-      - name: Set up Java Development Kit # Essential for Android builds with modern Flutter
-        uses: actions/setup-java@v4 # Use the latest stable version of the Java setup action
+      - name: Set up Java Development Kit
+        uses: actions/setup-java@v4 # Ensure this is v4
         with:
-          distribution: 'temurin' # A common and reliable Java distribution
-          java-version: '17' # Flutter 3+ and recent Android tools typically require Java 17
+          distribution: 'temurin'
+          java-version: '17'
 
-      - name: Set up Flutter SDK # Step to set up the Flutter environment
-        uses: subosito/flutter-action@v2 # Use the latest stable version of the Flutter action
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2 # This is generally the correct action for Flutter
         with:
-          channel: 'stable' # Use the stable Flutter channel
+          channel: 'stable'
+          # No specific flutter-version needed unless you want to lock it down tightly.
 
-      - name: Get Flutter dependencies # Downloads all packages listed in pubspec.yaml
+      # IMPORTANT: Add this caching step for Flutter packages
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v4 # Use v4 for caching
+        with:
+          path: |
+            ${{ env.FLUTTER_HOME }}/bin/cache/dart-sdk
+            ${{ runner.tool_cache }}/flutter
+            ~/.pub-cache
+          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+
+      - name: Get Flutter dependencies
         run: flutter pub get
 
       - name: Run Flutter Doctor (Optional, for CI debugging)
-        run: flutter doctor -v # Provides detailed info on the Flutter setup in CI, helpful if builds fail
+        run: flutter doctor # Removed -v for now, just in case
 
-      - name: Build Android APK # The actual command to build the release APK
-        run: flutter build apk --release --target-platform android-arm64 # Builds a release APK optimized for 64-bit ARM devices
+      - name: Build Android APK
+        run: flutter build apk --release --target-platform android-arm64
 
-      - name: Upload APK artifact # Makes the generated APK available for download
-        uses: actions/upload-artifact@v4 # Use the latest stable version of the upload-artifact action
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4 # Ensure this is v4
         with:
-          name: release-apk # The name of the artifact (how it will appear on GitHub)
-          path: build/app/outputs/flutter-apk/app-release.apk # The path to the generated APK file
-          retention-days: 7 # How long the artifact will be kept on GitHub's servers
-
+          name: release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 7

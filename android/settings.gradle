@@ -1,7 +1,6 @@
 // Full code for android/settings.gradle (Standard Flutter Setup)
 pluginManagement {
     // These lines are crucial for Gradle to find Flutter's own Gradle plugins
-    // by including Flutter's internal Gradle components as build sources.
     def flutterSdkPath = System.getenv("FLUTTER_SDK_PATH")
     if (flutterSdkPath == null) {
         flutterSdkPath = System.getProperty("flutter.sdk")

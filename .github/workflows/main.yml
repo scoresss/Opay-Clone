@@ -49,6 +49,9 @@ jobs:
 
       - name: Build Android APK
         run: flutter build apk --release --target-platform android-arm64
+        # CRITICAL ADDITION: Explicitly set FLUTTER_SDK_PATH for this step
+        env:
+          FLUTTER_SDK_PATH: /opt/hostedtoolcache/flutter/3.22.0-stable/x64/flutter 
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4 # Ensure this is v4

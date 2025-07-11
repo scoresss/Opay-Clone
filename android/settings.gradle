@@ -1,31 +1,31 @@
-// Full code for android/settings.gradle (Standard Flutter Setup)
+// Full code for android/settings.gradle (Adjusted for GitHub Actions paths)
 pluginManagement {
     // These lines are crucial for Gradle to find Flutter's own Gradle plugins
+    // by including Flutter's internal Gradle components as build sources.
     def flutterSdkPath = System.getenv("FLUTTER_SDK_PATH")
     if (flutterSdkPath == null) {
         flutterSdkPath = System.getProperty("flutter.sdk")
     }
-    // This assertion helps with debugging if the path isn't found
     assert flutterSdkPath != null, "FLUTTER_SDK_PATH not set; property flutter.sdk not set; " +
             "you must set flutter.sdk in gradle.properties or flutter.sdk environment variable"
 
-    // Include Flutter's internal Gradle daemon and tools as build sources
-    includeBuild("$flutterSdkPath/.gradle/daemon")
-    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+    // Adjusted includeBuild paths based on common GitHub Actions setups
+    // Use the relative paths within the SDK directly, as the daemon folder might not be there.
+    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle") # The main Gradle tools
+    // The .gradle/daemon path is often not directly included or needed if the main tools are there.
+    // If issues persist, we might need to remove this line: includeBuild("$flutterSdkPath/.gradle/daemon")
 
     repositories {
         google()
         mavenCentral()
-        gradlePluginPortal() // For standard Gradle plugins
+        gradlePluginPortal()
     }
 
-    // Define the plugins used in your project and their versions.
-    // 'apply false' means these plugins are defined here but applied in individual modules.
     plugins {
-        id "dev.flutter.flutter-plugin-apply" version "1.0.0" apply false // The core Flutter plugin
-        id "com.android.application" version "8.4.0" apply false // Android Gradle Plugin
-        id "org.jetbrains.kotlin.android" version "1.9.0" apply false // Kotlin Android Plugin
-        id "com.google.gms.google-services" version "4.4.1" apply false // Firebase Google Services plugin
+        id "dev.flutter.flutter-plugin-apply" version "1.0.0" apply false
+        id "com.android.application" version "8.4.0" apply false
+        id "org.jetbrains.kotlin.android" version "1.9.0" apply false
+        id "com.google.gms.google-services" version "4.4.1" apply false
     }
 }
 
@@ -38,4 +38,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "android"
-include ':app' // Crucial for including your app module
+include ':app'

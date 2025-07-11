@@ -6,7 +6,7 @@ pluginManagement {
     if (flutterSdkPath == null) {
         flutterSdkPath = System.getProperty("flutter.sdk")
     }
-    // This assert helps with debugging if the path isn't found
+    // This assertion helps with debugging if the path isn't found
     assert flutterSdkPath != null, "FLUTTER_SDK_PATH not set; property flutter.sdk not set; " +
             "you must set flutter.sdk in gradle.properties or flutter.sdk environment variable"
 

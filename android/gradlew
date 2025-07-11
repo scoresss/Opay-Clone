@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+##############################################################################
+##
+##  Gradle wrapper script for UNIX
+##
+##############################################################################
+
+# Determine the Java command to use to start the JVM.
+if [ -n "$JAVA_HOME" ] ; then
+    if [ -x "$JAVA_HOME/jre/bin/java" ] ; then
+        JAVACMD="$JAVA_HOME/jre/bin/java"
+    else
+        JAVACMD="$JAVA_HOME/bin/java"
+    fi
+    if [ ! -x "$JAVACMD" ] ; then
+        die "ERROR: JAVA_HOME is set to an invalid directory: $JAVA_HOME
+
+Please set the JAVA_HOME environment variable in your shell to the correct location of your Java installation."
+    fi
+else
+    JAVACMD="java"
+fi
+
+APP_HOME="$(
+  cd "$(dirname "$0")" || exit
+  pwd -P
+)"
+
+# Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS system properties.
+DEFAULT_JVM_OPTS=""
+
+# Use the maximum available file descriptors.
+if [ "$OSTYPE" = "darwin" ] && [ -z "$MAX_FILE_DESCRIPTORS" ] ; then
+    MAX_FILE_DESCRIPTORS=$(sysctl -n kern.maxfilesperproc)
+fi
+
+if [ -n "$MAX_FILE_DESCRIPTORS" ] ; then
+    # If it's set to -1, it means it is unlimited, so don't set a limit
+    if [ "$MAX_FILE_DESCRIPTORS" -ne "-1" ] ; then
+        if [ "$MAX_FILE_DESCRIPTORS" -lt "8192" ] ; then
+            MAX_FILE_DESCRIPTORS="8192"
+        fi
+        ulimit -n "$MAX_FILE_DESCRIPTORS"
+    fi
+fi
+
+# Determine the script name.
+APP_BASE_NAME=$(basename "$0")
+
+# Add default Gradle properties here. You can also use GRADLE_USER_HOME, GRADLE_OPTS, etc.
+DEFAULT_GRADLE_PROPERTIES=""
+
+# Find the path to the launcher.
+GRADLE_WRAPPER_JAR="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
+
+if [ ! -f "$GRADLE_WRAPPER_JAR" ] ; then
+    # Try to find it relative to the script
+    APP_HOME="$(
+        cd "$(dirname "$0")/.." || exit
+        pwd -P
+    )"
+    GRADLE_WRAPPER_JAR="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
+fi
+
+if [ ! -f "$GRADLE_WRAPPER_JAR" ] ; then
+    die "ERROR: Could not find gradle-wrapper.jar in $APP_HOME/gradle/wrapper/.
+Please ensure that $APP_HOME/gradle/wrapper/gradle-wrapper.jar exists and is readable."
+fi
+
+# Set up the classpath.
+CLASSPATH="$GRADLE_WRAPPER_JAR"
+
+# Execute Gradle.
+exec "$JAVACMD" $DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS \
+  -classpath "$CLASSPATH" \
+  org.gradle.wrapper.GradleWrapperMain "$@"

@@ -45,9 +45,15 @@ jobs:
       - name: Run Flutter Doctor (Optional, for CI debugging)
         run: flutter doctor
 
+      # IMPORTANT: Ensure gradlew has execute permissions
+      - name: Set gradlew executable
+        run: chmod +x ./android/gradlew
+
       # Clean the Android build directory to prevent caching issues
       - name: Clean Android Project
-        run: cd android && ./gradlew clean # Use ./gradlew for wrapper
+        run: |
+          cd android
+          ./gradlew clean
 
       - name: Build Android APK
         # Pass flutter.sdk as a system property directly to Gradle

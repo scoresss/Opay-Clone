@@ -1,50 +1,49 @@
-// Full code for android/app/build.gradle (App-level)
 plugins {
     id "com.android.application"
     id "kotlin-android"
-    id "dev.flutter.flutter-gradle-plugin" // The new Flutter Gradle plugin ID
     id "com.google.gms.google-services" // For Firebase
 }
 
 android {
-    compileSdk 34 // Latest recommended for Flutter 3+
-    targetSdk 34 // Latest recommended for Flutter 3+
+    compileSdk 34
+    targetSdk 34
 
     sourceSets {
-        main.java.srcDirs += 'src/main/kotlin' // Explicitly include Kotlin source
+        main.java.srcDirs += 'src/main/kotlin'
     }
 
     defaultConfig {
-        applicationId "com.example.opay" // Your actual application ID
-        minSdkVersion 21 // Keep it at 21 for broad compatibility
+        applicationId "com.example.opay" // Replace with your actual app id
+        minSdkVersion 21
         targetSdkVersion 34
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        multiDexEnabled true // Enable for apps with many methods (common with Firebase)
+        multiDexEnabled true
     }
 
     buildTypes {
         release {
-            signingConfig debug.signingConfig // Use debug keys for CI for now
+            signingConfig debug.signingConfig // For CI; replace with release keys for production
+            minifyEnabled false
+            shrinkResources false
         }
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17 // Match Java 17 set in CI
-        targetCompatibility JavaVersion.VERSION_17 // Match Java 17 set in CI
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = '17' // Match Java 17
+        jvmTarget = '17'
     }
-    namespace 'com.example.opay' // Required for AGP 8.0+ based on your package
-}
-
-flutter {
-    source '../..'
+    namespace 'com.example.opay' // Should match your package
 }
 
 dependencies {
-    implementation 'androidx.multidex:multidex:2.0.1' // Required if minSdkVersion < 21 and multiDexEnabled
+    implementation 'androidx.multidex:multidex:2.0.1'
     // Add any other specific Android dependencies your project needs here
 }
+
+// ✅ THIS is the critical piece that integrates Flutter:
+apply from: "../../flutter_tools/gradle/flutter.gradle"

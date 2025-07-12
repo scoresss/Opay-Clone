@@ -21,6 +21,5 @@ dependencyResolutionManagement {
     }
 }
 
+rootProject.name = "android"
 include(":app")
-
-// ✅ No need to resolve flutter.sdk manually, Codemagic does that automatically

@@ -1,13 +1,4 @@
-// Full code for android/settings.gradle (Simplified SDK Path Resolution)
 pluginManagement {
-    // Assume flutter.sdk is provided as a system property or from gradle.properties
-    def flutterSdkPath = System.getProperty("flutter.sdk")
-    assert flutterSdkPath != null, "flutter.sdk property is not set. " +
-            "You must set flutter.sdk in gradle.properties or pass it as a system property."
-
-    // Include Flutter's internal Gradle tools
-    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
-
     repositories {
         google()
         mavenCentral()
@@ -15,10 +6,10 @@ pluginManagement {
     }
 
     plugins {
-        id "dev.flutter.flutter-plugin-apply" version "1.0.0" apply false
         id "com.android.application" version "8.4.0" apply false
         id "org.jetbrains.kotlin.android" version "1.9.0" apply false
         id "com.google.gms.google-services" version "4.4.1" apply false
+        id "dev.flutter.flutter-plugin-apply" version "1.0.0" apply false
     }
 }
 
@@ -30,5 +21,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "android"
-include ':app'
+include(":app")
+
+// ✅ No need to resolve flutter.sdk manually, Codemagic does that automatically

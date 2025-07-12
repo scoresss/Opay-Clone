@@ -1,6 +1,7 @@
 plugins {
     id "com.android.application"
     id "kotlin-android"
+    id "dev.flutter.flutter-plugin-apply"
     id "com.google.gms.google-services"
 }
 
@@ -43,5 +44,3 @@ dependencies {
     implementation 'androidx.multidex:multidex:2.0.1'
     // Add other dependencies here
 }
-
-apply from: "../../flutter_tools/gradle/flutter.gradle"
